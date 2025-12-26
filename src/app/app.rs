@@ -1,9 +1,12 @@
 use crate::app::hotkey::HotKey;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::layout::Constraint::{Fill, Length, Min};
 use ratatui::style::Stylize;
+use ratatui::widgets::{Gauge, Paragraph};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
+    layout::Layout,
     layout::Rect,
     symbols::border,
     text::Line,
@@ -60,6 +63,23 @@ impl App {
             _ => {}
         }
     }
+    fn render_settings(area: Rect, buf: &mut Buffer) {
+        let [sources_rect, settings_rect, files_rect] =
+            Layout::horizontal([Fill(2), Length(25), Fill(1)]).areas(area);
+        let sources_block = Block::bordered()
+            .title(Line::from("Sources").centered())
+            .border_set(border::ROUNDED);
+        let settings_block = Block::bordered()
+            .title(Line::from("Settings").centered())
+            .border_set(border::ROUNDED);
+        let files_block = Block::bordered()
+            .title(Line::from("Files").centered())
+            .border_set(border::ROUNDED);
+
+        sources_block.render(sources_rect, buf);
+        settings_block.render(settings_rect, buf);
+        files_block.render(files_rect, buf);
+    }
 }
 
 impl Widget for &App {
@@ -74,6 +94,21 @@ impl Widget for &App {
             .title(title.centered())
             .title_bottom(instructions.centered())
             .border_set(border::ROUNDED);
+
+        let [main_page, command, progress] =
+            Layout::vertical([Min(0), Length(3), Length(3)]).areas(block.inner(area));
+        let command_block = Block::bordered()
+            .border_set(border::ROUNDED)
+            .title(Line::from(" Command ").centered());
+        let progress_block = Block::bordered()
+            .border_set(border::ROUNDED)
+            .title(Line::from(" ffmpeg progress ").centered());
+        let ffmpeg_command = Paragraph::new("ffmpeg ...").block(command_block);
+        let progress_bar = Gauge::default().block(progress_block).ratio(0.5);
+
+        App::render_settings(main_page, buf);
+        ffmpeg_command.render(command, buf);
+        progress_bar.render(progress, buf);
 
         block.render(area, buf);
     }
