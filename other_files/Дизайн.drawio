@@ -1,0 +1,46 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.0.3">
+  <diagram name="Страница-1" id="KHDQktE0IKdZ58IDZJF2">
+    <mxGraphModel dx="1892" dy="1354" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-1" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="79" y="30" width="670" height="370" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-2" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="89" y="40" width="330" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-4" value="[X] Audio #1&lt;div&gt;[] Audio #2 [Есть только в 1, 3, 4]&lt;/div&gt;&lt;div&gt;[X] Audio #3&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;" parent="1" vertex="1">
+          <mxGeometry x="99" y="90" width="310" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-5" value="&lt;span style=&quot;&quot;&gt;[X]&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;&quot;&gt;Subtitle&lt;/span&gt;&lt;span style=&quot;&quot;&gt;&amp;nbsp;#1&lt;/span&gt;&lt;div style=&quot;&quot;&gt;[]&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Subtitle&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp;#2&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;[X] Subtitle #3&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;" parent="1" vertex="1">
+          <mxGeometry x="99" y="160" width="310" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-6" value="Список настроек" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="433" y="40" width="106" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-3" value="Video #[1]" style="rounded=0;whiteSpace=wrap;html=1;align=left;" parent="1" vertex="1">
+          <mxGeometry x="99" y="50" width="310" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-14" value="ffmpeg -i ..." style="rounded=0;whiteSpace=wrap;html=1;align=left;" parent="1" vertex="1">
+          <mxGeometry x="89" y="290" width="650" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-15" value="Файл 1 [X]&lt;div&gt;Файл 2 [X]&lt;/div&gt;&lt;div&gt;Файл 3 [X]&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="549" y="80" width="190" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-16" value="Открыть файл" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="549" y="40" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-17" value="Открыть папку" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="649" y="40" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-18" value="Запустить" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="649" y="360" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Fon6CalQkOyGxj-BhnJO-19" value="Прогресс" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="89" y="360" width="550" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
