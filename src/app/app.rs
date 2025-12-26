@@ -1,8 +1,9 @@
+use crate::app::ffmpeg_manager::FfmpegManager;
 use crate::app::hotkey::HotKey;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::layout::Constraint::{Fill, Length, Min};
 use ratatui::style::Stylize;
-use ratatui::widgets::{Gauge, Paragraph};
+use ratatui::widgets::{Gauge, List, ListItem, Paragraph, StatefulWidget};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -17,6 +18,7 @@ use std::io;
 pub struct App {
     exit: bool,
     hotkeys: Vec<HotKey>,
+    ffmpeg_manager: FfmpegManager,
 }
 
 impl App {
@@ -27,10 +29,11 @@ impl App {
                 HotKey::new("Open file", KeyCode::Char('o')),
                 HotKey::new("Close app", KeyCode::Char('c')),
             ],
+            ffmpeg_manager: FfmpegManager::default(),
         }
     }
 
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    pub fn run(&mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         while !self.exit {
             terminal.draw(|frame| {
                 self.draw(frame);
@@ -40,7 +43,7 @@ impl App {
         Ok(())
     }
 
-    fn draw(&self, frame: &mut Frame) {
+    fn draw(&mut self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
     }
 
@@ -60,10 +63,13 @@ impl App {
             KeyCode::Char('q') | KeyCode::Char('c') | KeyCode::Esc => {
                 self.exit = true;
             }
+            KeyCode::Up => self.ffmpeg_manager.selected_file.select_previous(),
+            KeyCode::Down => self.ffmpeg_manager.selected_file.select_next(),
+
             _ => {}
         }
     }
-    fn render_settings(area: Rect, buf: &mut Buffer) {
+    fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let [sources_rect, settings_rect, files_rect] =
             Layout::horizontal([Fill(2), Length(25), Fill(1)]).areas(area);
         let sources_block = Block::bordered()
@@ -72,17 +78,29 @@ impl App {
         let settings_block = Block::bordered()
             .title(Line::from("Settings").centered())
             .border_set(border::ROUNDED);
+
+        self.render_files_list(files_rect, buf);
+
+        sources_block.render(sources_rect, buf);
+        settings_block.render(settings_rect, buf);
+    }
+    fn render_files_list(&mut self, area: Rect, buf: &mut Buffer) {
         let files_block = Block::bordered()
             .title(Line::from("Files").centered())
             .border_set(border::ROUNDED);
 
-        sources_block.render(sources_rect, buf);
-        settings_block.render(settings_rect, buf);
-        files_block.render(files_rect, buf);
+        let items: Vec<ListItem> = self
+            .ffmpeg_manager
+            .files
+            .iter()
+            .map(|file| ListItem::from(file.to_string()))
+            .collect();
+        let list = List::new(items).block(files_block).highlight_symbol(">");
+        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selected_file);
     }
 }
 
-impl Widget for &App {
+impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from(" Film Compressor ".bold());
         let mut hotkeys = vec![" ".into()];
@@ -106,10 +124,11 @@ impl Widget for &App {
         let ffmpeg_command = Paragraph::new("ffmpeg ...").block(command_block);
         let progress_bar = Gauge::default().block(progress_block).ratio(0.5);
 
-        App::render_settings(main_page, buf);
+        block.render(area, buf);
+
         ffmpeg_command.render(command, buf);
         progress_bar.render(progress, buf);
 
-        block.render(area, buf);
+        self.render_settings(main_page, buf);
     }
 }
