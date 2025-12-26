@@ -20,7 +20,10 @@ impl App {
     pub fn new() -> Self {
         Self {
             exit: false,
-            hotkeys: vec![HotKey::new("Open file", KeyCode::Char('o'))],
+            hotkeys: vec![
+                HotKey::new("Open file", KeyCode::Char('o')),
+                HotKey::new("Close app", KeyCode::Char('c')),
+            ],
         }
     }
 
@@ -66,7 +69,6 @@ impl Widget for &App {
         self.hotkeys.iter().for_each(|hotkey| {
             hotkeys.extend(hotkey.get_styled());
         });
-        hotkeys.push(" ".into());
         let instructions = Line::from(hotkeys);
         let block = Block::bordered()
             .title(title.centered())

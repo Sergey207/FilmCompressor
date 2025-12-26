@@ -25,6 +25,7 @@ impl HotKey {
                 hotkey_text = self.hotkey.to_string();
             }
         }
+        hotkey_text.push(' ');
 
         vec![self.text.as_str().into(), hotkey_text.blue().bold()]
     }
