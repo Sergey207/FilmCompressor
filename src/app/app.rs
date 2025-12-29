@@ -13,6 +13,7 @@ use ratatui::{
     text::Line,
     widgets::{Block, Widget},
 };
+use std::cmp::min;
 use std::io;
 
 pub struct App {
@@ -23,13 +24,15 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
+        let mut ffmpeg_manager = FfmpegManager::default();
+        ffmpeg_manager.add_file("test_file".to_string());
         Self {
             exit: false,
             hotkeys: vec![
                 HotKey::new("Open file", KeyCode::Char('o')),
                 HotKey::new("Close app", KeyCode::Char('c')),
             ],
-            ffmpeg_manager: FfmpegManager::default(),
+            ffmpeg_manager,
         }
     }
 
@@ -63,9 +66,44 @@ impl App {
             KeyCode::Char('q') | KeyCode::Char('c') | KeyCode::Esc => {
                 self.exit = true;
             }
-            KeyCode::Up => self.ffmpeg_manager.selected_file.select_previous(),
-            KeyCode::Down => self.ffmpeg_manager.selected_file.select_next(),
-
+            KeyCode::Up => {
+                let selected = self.ffmpeg_manager.get_selected();
+                if let Some(selected) = selected {
+                    self.ffmpeg_manager.selections[selected].select_previous();
+                } else {
+                    self.ffmpeg_manager.selections[0].select_first();
+                }
+            }
+            KeyCode::Down => {
+                let selected = self.ffmpeg_manager.get_selected();
+                if let Some(selected) = selected {
+                    self.ffmpeg_manager.selections[selected].select_next();
+                } else {
+                    self.ffmpeg_manager.selections[0].select_last();
+                }
+            }
+            KeyCode::Left => {
+                let selected = self.ffmpeg_manager.get_selected();
+                if let Some(mut selected) = selected {
+                    self.ffmpeg_manager.selections[selected].select(None);
+                    if selected > 0 {
+                        selected -= 1;
+                    }
+                    self.ffmpeg_manager.selections[selected].select_first();
+                } else {
+                    self.ffmpeg_manager.selections[0].select_first();
+                }
+            }
+            KeyCode::Right => {
+                let selected = self.ffmpeg_manager.get_selected();
+                if let Some(mut selected) = selected {
+                    self.ffmpeg_manager.selections[selected].select(None);
+                    selected = min(selected + 1, 2);
+                    self.ffmpeg_manager.selections[selected].select_first();
+                } else {
+                    self.ffmpeg_manager.selections[2].select_first();
+                }
+            }
             _ => {}
         }
     }
@@ -79,11 +117,26 @@ impl App {
             .title(Line::from("Settings").centered())
             .border_set(border::ROUNDED);
 
+        self.render_sources_list(sources_rect, buf);
         self.render_files_list(files_rect, buf);
 
-        sources_block.render(sources_rect, buf);
         settings_block.render(settings_rect, buf);
     }
+
+    fn render_sources_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let sources_block = Block::bordered()
+            .title(Line::from("Sources").centered())
+            .border_set(border::ROUNDED);
+        let items: Vec<ListItem> = self
+            .ffmpeg_manager
+            .sources
+            .iter()
+            .map(|source| ListItem::from(source.title.clone()))
+            .collect();
+        let list = List::new(items).block(sources_block).highlight_symbol(">");
+        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[0]);
+    }
+
     fn render_files_list(&mut self, area: Rect, buf: &mut Buffer) {
         let files_block = Block::bordered()
             .title(Line::from("Files").centered())
@@ -93,10 +146,10 @@ impl App {
             .ffmpeg_manager
             .files
             .iter()
-            .map(|file| ListItem::from(file.to_string()))
+            .map(|file| ListItem::from(file.path.to_str().unwrap()))
             .collect();
         let list = List::new(items).block(files_block).highlight_symbol(">");
-        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selected_file);
+        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[2]);
     }
 }
 
