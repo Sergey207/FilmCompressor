@@ -25,7 +25,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut ffmpeg_manager = FfmpegManager::default();
-        ffmpeg_manager.add_file("test_file".to_string());
+        ffmpeg_manager.add_file("/home/sergey/Videos/Fallout.S01.2160p.AMZN.WEB-DL.H.265.SDR/Fallout.S01E01.The.End.2160p.AMZN.WEB-DL.H.265.RGzsRutracker.mkv".to_string());
         Self {
             exit: false,
             hotkeys: vec![
@@ -66,42 +66,30 @@ impl App {
             KeyCode::Char('q') | KeyCode::Char('c') | KeyCode::Esc => {
                 self.exit = true;
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Down => {
                 let selected = self.ffmpeg_manager.get_selected();
                 if let Some(selected) = selected {
-                    self.ffmpeg_manager.selections[selected].select_previous();
+                    match key_event.code {
+                        KeyCode::Up => self.ffmpeg_manager.selections[selected].select_previous(),
+                        KeyCode::Down => self.ffmpeg_manager.selections[selected].select_next(),
+                        _ => {}
+                    }
                 } else {
                     self.ffmpeg_manager.selections[0].select_first();
                 }
             }
-            KeyCode::Down => {
-                let selected = self.ffmpeg_manager.get_selected();
-                if let Some(selected) = selected {
-                    self.ffmpeg_manager.selections[selected].select_next();
-                } else {
-                    self.ffmpeg_manager.selections[0].select_last();
-                }
-            }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Right => {
                 let selected = self.ffmpeg_manager.get_selected();
                 if let Some(mut selected) = selected {
                     self.ffmpeg_manager.selections[selected].select(None);
-                    if selected > 0 {
-                        selected -= 1;
+                    if key_event.code == KeyCode::Left {
+                        selected = selected.saturating_sub(1);
+                    } else {
+                        selected = min(selected + 1, 2);
                     }
                     self.ffmpeg_manager.selections[selected].select_first();
                 } else {
                     self.ffmpeg_manager.selections[0].select_first();
-                }
-            }
-            KeyCode::Right => {
-                let selected = self.ffmpeg_manager.get_selected();
-                if let Some(mut selected) = selected {
-                    self.ffmpeg_manager.selections[selected].select(None);
-                    selected = min(selected + 1, 2);
-                    self.ffmpeg_manager.selections[selected].select_first();
-                } else {
-                    self.ffmpeg_manager.selections[2].select_first();
                 }
             }
             _ => {}
@@ -110,11 +98,8 @@ impl App {
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let [sources_rect, settings_rect, files_rect] =
             Layout::horizontal([Fill(2), Length(25), Fill(1)]).areas(area);
-        let sources_block = Block::bordered()
-            .title(Line::from("Sources").centered())
-            .border_set(border::ROUNDED);
         let settings_block = Block::bordered()
-            .title(Line::from("Settings").centered())
+            .title(Line::from(" Settings ").centered())
             .border_set(border::ROUNDED);
 
         self.render_sources_list(sources_rect, buf);
@@ -125,13 +110,13 @@ impl App {
 
     fn render_sources_list(&mut self, area: Rect, buf: &mut Buffer) {
         let sources_block = Block::bordered()
-            .title(Line::from("Sources").centered())
+            .title(Line::from(" Sources ").centered())
             .border_set(border::ROUNDED);
         let items: Vec<ListItem> = self
             .ffmpeg_manager
             .sources
             .iter()
-            .map(|source| ListItem::from(source.title.clone()))
+            .map(|source| ListItem::from(source.to_string()))
             .collect();
         let list = List::new(items).block(sources_block).highlight_symbol(">");
         StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[0]);
@@ -139,14 +124,14 @@ impl App {
 
     fn render_files_list(&mut self, area: Rect, buf: &mut Buffer) {
         let files_block = Block::bordered()
-            .title(Line::from("Files").centered())
+            .title(Line::from(" Files ").centered())
             .border_set(border::ROUNDED);
 
         let items: Vec<ListItem> = self
             .ffmpeg_manager
             .files
             .iter()
-            .map(|file| ListItem::from(file.path.to_str().unwrap()))
+            .map(|file| ListItem::from(file.path.file_name().unwrap().to_string_lossy()))
             .collect();
         let list = List::new(items).block(files_block).highlight_symbol(">");
         StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[2]);

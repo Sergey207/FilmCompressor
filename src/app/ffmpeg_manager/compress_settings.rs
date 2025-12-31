@@ -1,18 +1,7 @@
 use crate::app::ffmpeg_manager::codec::{AudioCodec, PixelFormat, SubtitleCodec, VideoCodec};
 
 #[derive(Debug)]
-pub enum Sources {
-    All,
-    Partial(Vec<u32>)
-}
-
-#[derive(Debug)]
 pub struct CompressSettings {
-    video_sources: Sources,
-    audio_sources: Sources,
-    subtitle_sources: Sources,
-    default_subtitle_source: u32,
-
     video_codec: VideoCodec,
     pixel_format: PixelFormat,
     audio_codec: AudioCodec,
@@ -29,10 +18,6 @@ pub struct CompressSettings {
 impl Default for CompressSettings {
     fn default() -> Self {
         Self {
-            video_sources: Sources::All,
-            audio_sources: Sources::All,
-            subtitle_sources: Sources::All,
-            default_subtitle_source: 0,
             video_codec: VideoCodec::default(),
             pixel_format: PixelFormat::default(),
             audio_codec: AudioCodec::default(),
