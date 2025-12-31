@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::app::ffmpeg_manager::compress_settings::CompressSettings;
 use ratatui::widgets::ListState;
 use serde_json::Value;
@@ -38,9 +39,9 @@ pub struct Stream {
     pub default: bool,
 }
 
-impl ToString for Stream {
-    fn to_string(&self) -> String {
-        match &self.stream_type {
+impl Display for Stream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match &self.stream_type {
             StreamType::Video(video_data) => String::from(format!(
                 "Video {} ({}:{})",
                 self.codec_name, video_data.resolution.0, video_data.resolution.1
@@ -69,7 +70,8 @@ impl ToString for Stream {
                 result
             }
             StreamType::Attachment => String::from("Attachment"),
-        }
+        };
+        write!(f, "{}", str)
     }
 }
 
