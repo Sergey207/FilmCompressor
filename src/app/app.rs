@@ -15,6 +15,7 @@ use ratatui::{
 };
 use std::cmp::min;
 use std::io;
+use std::path::PathBuf;
 
 pub struct App {
     exit: bool,
@@ -25,7 +26,9 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut ffmpeg_manager = FfmpegManager::default();
-        ffmpeg_manager.add_file("/home/sergey/Videos/Fallout.S01.2160p.AMZN.WEB-DL.H.265.SDR/Fallout.S01E01.The.End.2160p.AMZN.WEB-DL.H.265.RGzsRutracker.mkv".to_string());
+        ffmpeg_manager.add_folder(PathBuf::from(
+            "/home/sergey/Videos/Пацаны/The.Boys.S02.1080p.AMZN.WEBRip.DDP5.1.x264-NTb.TeamHD/",
+        ));
         Self {
             exit: false,
             hotkeys: vec![
@@ -114,7 +117,7 @@ impl App {
             .border_set(border::ROUNDED);
         let items: Vec<ListItem> = self
             .ffmpeg_manager
-            .sources
+            .stream_settings
             .iter()
             .map(|source| ListItem::from(source.to_string()))
             .collect();
@@ -129,7 +132,7 @@ impl App {
 
         let items: Vec<ListItem> = self
             .ffmpeg_manager
-            .files
+            .input_files
             .iter()
             .map(|file| ListItem::from(file.path.file_name().unwrap().to_string_lossy()))
             .collect();

@@ -6,7 +6,6 @@ pub struct CompressSettings {
     pixel_format: PixelFormat,
     audio_codec: AudioCodec,
     subtitle_codec: SubtitleCodec,
-    include_other_files: bool,
 
     video_bitrate: Option<String>,
     audio_bitrate: Option<String>,
@@ -22,7 +21,6 @@ impl Default for CompressSettings {
             pixel_format: PixelFormat::default(),
             audio_codec: AudioCodec::default(),
             subtitle_codec: SubtitleCodec::default(),
-            include_other_files: false,
             video_bitrate: None,
             audio_bitrate: None,
             scale: None,

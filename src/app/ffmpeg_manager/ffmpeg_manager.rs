@@ -1,30 +1,30 @@
-use std::fmt::Display;
 use crate::app::ffmpeg_manager::compress_settings::CompressSettings;
 use ratatui::widgets::ListState;
 use serde_json::Value;
+use std::fmt::Display;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::Command;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct VideoData {
     pub resolution: (u64, u64),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct AudioData {
     pub title: Option<String>,
     pub channels: u64,
     pub language: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct SubtitleData {
     pub title: Option<String>,
     pub language: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum StreamType {
     Video(VideoData),
     Audio(AudioData),
@@ -32,7 +32,7 @@ pub enum StreamType {
     Attachment,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Stream {
     pub stream_type: StreamType,
     pub codec_name: String,
@@ -144,7 +144,7 @@ impl InputFile {
                     }
                 },
                 codec_name: stream["codec_name"].as_str().unwrap().to_string(),
-                default: stream["disposition"]["default"].as_bool().unwrap_or(false),
+                default: stream["disposition"]["default"].as_u64().unwrap_or(0) == 1,
             };
             result.push(new_stream);
         }
@@ -152,18 +152,101 @@ impl InputFile {
     }
 }
 
+pub enum FfmpegStreamFiles {
+    All,
+    Partial(Vec<usize>),
+}
+
+impl Display for FfmpegStreamFiles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FfmpegStreamFiles::All => write!(f, ""),
+            FfmpegStreamFiles::Partial(files) => {
+                let files = files.iter().map(|f| f.to_string()).collect::<Vec<String>>();
+                write!(f, " ({})", files.join("|"))
+            }
+        }
+    }
+}
+
+pub struct FfmpegStreamSettings {
+    pub stream: Stream,
+    pub files: FfmpegStreamFiles,
+    pub enabled: bool,
+    pub default: bool,
+}
+
+impl Display for FfmpegStreamSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut result = String::new();
+        result += if self.enabled { "[X] " } else { "[] " };
+        if self.default {
+            result += "[D] ";
+        }
+        result += &self.stream.to_string();
+        result += &self.files.to_string();
+        write!(f, "{}", result)
+    }
+}
+
 pub struct FfmpegManager {
-    pub files: Vec<InputFile>,
+    pub input_files: Vec<InputFile>,
+    pub stream_settings: Vec<FfmpegStreamSettings>,
     pub compress_settings: CompressSettings,
-    pub sources: Vec<Stream>,
     pub selections: [ListState; 3],
 }
 
 impl FfmpegManager {
-    pub fn add_file(&mut self, path: String) {
-        let input_file = InputFile::from_path(path.into());
-        self.sources.extend(input_file.sources.clone());
-        self.files.push(input_file);
+    pub fn add_file(&mut self, path: PathBuf) {
+        let input_file = InputFile::from_path(path);
+        if !input_file.sources.is_empty() {
+            self.input_files.push(input_file);
+            self.update_stream_settings();
+        }
+    }
+
+    pub fn add_folder(&mut self, path: PathBuf) {
+        if !path.is_dir() {
+            return;
+        }
+        let mut paths: Vec<_> = path
+            .read_dir()
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        paths.sort();
+        for path in paths {
+            self.add_file(path);
+        }
+    }
+
+    pub fn update_stream_settings(&mut self) {
+        self.stream_settings.clear();
+        let mut sources = Vec::new();
+        for input_file in self.input_files.iter() {
+            for source in input_file.sources.iter() {
+                if !sources.contains(source) {
+                    self.stream_settings.push(FfmpegStreamSettings {
+                        stream: source.clone(),
+                        files: FfmpegStreamFiles::All,
+                        enabled: true,
+                        default: source.default,
+                    });
+                    sources.push(source.clone());
+                }
+            }
+        }
+        for stream_settings in &mut self.stream_settings {
+            let mut files = Vec::new();
+            for (i, input_file) in self.input_files.iter().enumerate() {
+                if input_file.sources.contains(&stream_settings.stream) {
+                    files.push(i + 1);
+                }
+            }
+            if files.len() != self.input_files.len() {
+                stream_settings.files = FfmpegStreamFiles::Partial(files);
+            }
+        }
     }
 
     pub fn get_selected(&self) -> Option<usize> {
@@ -179,9 +262,9 @@ impl FfmpegManager {
 impl Default for FfmpegManager {
     fn default() -> Self {
         Self {
-            files: Vec::new(),
+            input_files: Vec::new(),
+            stream_settings: Vec::new(),
             compress_settings: CompressSettings::default(),
-            sources: Vec::new(),
             selections: [ListState::default(); 3],
         }
     }
