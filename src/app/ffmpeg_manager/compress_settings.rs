@@ -1,5 +1,4 @@
 use crate::app::ffmpeg_manager::codec::{AudioCodec, PixelFormat, SubtitleCodec, VideoCodec};
-use std::fmt::format;
 
 #[derive(Debug)]
 pub struct CompressSettings {
@@ -30,7 +29,10 @@ impl CompressSettings {
                 "Audio bit rate: {}",
                 self.audio_bitrate.clone().unwrap_or(String::from("auto"))
             ),
-            format!("Scale: {}", self.scale.clone().unwrap_or(String::from("no"))),
+            format!(
+                "Scale: {}",
+                self.scale.clone().unwrap_or(String::from("no"))
+            ),
             format!("Other settings: {}", self.other_settings),
         ]
     }

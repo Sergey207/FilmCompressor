@@ -3,7 +3,7 @@ use crate::app::hotkey::HotKey;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use ratatui::layout::Constraint::{Fill, Length, Min};
 use ratatui::style::Stylize;
-use ratatui::widgets::{Gauge, List, ListItem, Paragraph, StatefulWidget};
+use ratatui::widgets::{List, ListItem, Paragraph, StatefulWidget};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
