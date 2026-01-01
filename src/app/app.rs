@@ -1,6 +1,6 @@
 use crate::app::ffmpeg_manager::FfmpegManager;
 use crate::app::hotkey::HotKey;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use ratatui::layout::Constraint::{Fill, Length, Min};
 use ratatui::style::Stylize;
 use ratatui::widgets::{Gauge, List, ListItem, Paragraph, StatefulWidget};
@@ -29,14 +29,13 @@ impl App {
         ffmpeg_manager.add_folder(PathBuf::from(
             "/home/sergey/Videos/Пацаны/The.Boys.S02.1080p.AMZN.WEBRip.DDP5.1.x264-NTb.TeamHD/",
         ));
-        Self {
+        let mut new_app = Self {
             exit: false,
-            hotkeys: vec![
-                HotKey::new("Open file", KeyCode::Char('o')),
-                HotKey::new("Close app", KeyCode::Char('c')),
-            ],
+            hotkeys: Vec::new(),
             ffmpeg_manager,
-        }
+        };
+        new_app.update_hotkeys();
+        new_app
     }
 
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
@@ -50,13 +49,34 @@ impl App {
     }
 
     fn update_hotkeys(&mut self) {
-        let mut result = vec![
-            HotKey::new("Open file", KeyCode::Char('o')),
-            HotKey::new("Close app", KeyCode::Char('c')),
-        ];
+        let mut result = vec![HotKey {
+            text: "Close app".to_string(),
+            key_event: KeyEvent {
+                code: KeyCode::Char('c'),
+                modifiers: KeyModifiers::CONTROL,
+                kind: KeyEventKind::Press,
+                state: KeyEventState::empty(),
+            },
+        }];
         if let Some(_) = self.ffmpeg_manager.selections[0].selected() {
-            result.push(HotKey::new("Toggle enabled", KeyCode::Enter));
-            result.push(HotKey::new("Toggle default", KeyCode::Char('d')));
+            result.push(HotKey {
+                text: "Toggle enabled".to_string(),
+                key_event: KeyEvent {
+                    code: KeyCode::Enter,
+                    modifiers: KeyModifiers::empty(),
+                    kind: KeyEventKind::Press,
+                    state: KeyEventState::empty(),
+                },
+            });
+            result.push(HotKey {
+                text: "Toggle default".to_string(),
+                key_event: KeyEvent {
+                    code: KeyCode::Char('d'),
+                    modifiers: KeyModifiers::CONTROL,
+                    kind: KeyEventKind::Press,
+                    state: KeyEventState::empty(),
+                },
+            });
         }
         self.hotkeys = result;
     }
@@ -77,8 +97,12 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('o') => {}
-            KeyCode::Char('q') | KeyCode::Char('c') | KeyCode::Esc => {
+            KeyCode::Char('q') | KeyCode::Char('c') => {
+                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.exit = true;
+                }
+            }
+            KeyCode::Esc => {
                 self.exit = true;
             }
             KeyCode::Up | KeyCode::Down => {
@@ -114,8 +138,10 @@ impl App {
                 }
             }
             KeyCode::Char('d') => {
-                if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
-                    self.ffmpeg_manager.toggle_default(selection);
+                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
+                        self.ffmpeg_manager.toggle_default(selection);
+                    }
                 }
             }
             _ => {}

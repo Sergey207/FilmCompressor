@@ -1,28 +1,25 @@
 use ratatui::style::Stylize;
 use ratatui::text::Span;
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub struct HotKey {
-    text: String,
-    pub hotkey: KeyCode,
+    pub text: String,
+    pub key_event: KeyEvent,
 }
 
 impl HotKey {
-    pub fn new(text: &str, hotkey: KeyCode) -> HotKey {
-        let mut text = text.to_string();
-        text.push(' ');
-        Self { text, hotkey }
-    }
     pub fn get_styled(&self) -> Vec<Span<'_>> {
-        let mut hotkey_text = String::new();
-        match self.hotkey {
+        let mut hotkey_text = String::from(" ");
+        match self.key_event.code {
             KeyCode::Char(c) => {
-                hotkey_text.push('^');
+                if self.key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    hotkey_text.push('^');
+                }
                 hotkey_text.push(c.to_ascii_uppercase());
             }
             _ => {
-                hotkey_text = self.hotkey.to_string();
+                hotkey_text += &self.key_event.code.to_string();
             }
         }
         hotkey_text.push(' ');
