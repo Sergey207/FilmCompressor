@@ -49,6 +49,17 @@ impl App {
         Ok(())
     }
 
+    fn update_hotkeys(&mut self) {
+        let mut result = vec![
+            HotKey::new("Open file", KeyCode::Char('o')),
+            HotKey::new("Close app", KeyCode::Char('c')),
+        ];
+        if let Some(_) = self.ffmpeg_manager.selections[0].selected() {
+            result.push(HotKey::new("Toggle enabled", KeyCode::Enter))
+        }
+        self.hotkeys = result;
+    }
+
     fn draw(&mut self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
     }
@@ -95,9 +106,17 @@ impl App {
                     self.ffmpeg_manager.selections[0].select_first();
                 }
             }
+            KeyCode::Enter => {
+                if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
+                    self.ffmpeg_manager.stream_settings[selection].enabled =
+                        !self.ffmpeg_manager.stream_settings[selection].enabled;
+                }
+            }
             _ => {}
         }
+        self.update_hotkeys();
     }
+
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
         let [sources_rect, settings_rect, files_rect] =
             Layout::horizontal([Fill(2), Length(25), Fill(1)]).areas(area);
