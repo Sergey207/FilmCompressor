@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Write};
+
 #[derive(Debug)]
 pub enum VideoCodec {
     Libx264,
@@ -7,14 +9,14 @@ pub enum VideoCodec {
     Av1Vaapi,
 }
 
-impl VideoCodec {
-    pub fn get_codec_name(&self) -> String {
+impl Display for VideoCodec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            VideoCodec::Libx264 => "libx264".to_string(),
-            VideoCodec::H264Vaapi => "h264_vaapi".to_string(),
-            VideoCodec::HevcVaapi => "hevc_vaapi".to_string(),
-            VideoCodec::Libsvtav1 => "libsvtav1".to_string(),
-            VideoCodec::Av1Vaapi => "av1_vaapi".to_string(),
+            VideoCodec::Libx264 => f.write_str("libx264"),
+            VideoCodec::H264Vaapi => f.write_str("h264_vaapi"),
+            VideoCodec::HevcVaapi => f.write_str("hevc_vaapi"),
+            VideoCodec::Libsvtav1 => f.write_str("libsvtav1"),
+            VideoCodec::Av1Vaapi => f.write_str("av1_vaapi"),
         }
     }
 }
@@ -30,10 +32,10 @@ pub enum AudioCodec {
     Libopus,
 }
 
-impl AudioCodec {
-    pub fn get_codec_name(&self) -> String {
+impl Display for AudioCodec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AudioCodec::Libopus => "libopus".to_string(),
+            AudioCodec::Libopus => f.write_str("libopus"),
         }
     }
 }
@@ -50,11 +52,11 @@ pub enum SubtitleCodec {
     Ass,
 }
 
-impl SubtitleCodec {
-    pub fn get_codec_name(&self) -> String {
+impl Display for SubtitleCodec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            SubtitleCodec::Srt => "srt".to_string(),
-            SubtitleCodec::Ass => "ass".to_string(),
+            SubtitleCodec::Srt => f.write_str("srt"),
+            SubtitleCodec::Ass => f.write_str("ass"),
         }
     }
 }
@@ -72,12 +74,12 @@ pub enum PixelFormat {
     Yuv420p10le,
 }
 
-impl PixelFormat {
-    pub fn get_codec_name(&self) -> String {
+impl Display for PixelFormat {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PixelFormat::Yuv420p => "yuv420p".to_string(),
-            PixelFormat::Nv10 => "nv10".to_string(),
-            PixelFormat::Yuv420p10le => "yuv420p10le".to_string(),
+            PixelFormat::Yuv420p => f.write_str("yuv420p"),
+            PixelFormat::Nv10 => f.write_str("nv10"),
+            PixelFormat::Yuv420p10le => f.write_str("yuv420p10le"),
         }
     }
 }

@@ -150,16 +150,12 @@ impl App {
     }
 
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
-        let [sources_rect, settings_rect, files_rect] =
-            Layout::horizontal([Fill(2), Length(25), Fill(1)]).areas(area);
-        let settings_block = Block::bordered()
-            .title(Line::from(" Settings ").centered())
-            .border_set(border::ROUNDED);
+        let [sources_rect, compress_settings_rect, files_rect] =
+            Layout::horizontal([Fill(2), Length(30), Fill(1)]).areas(area);
 
         self.render_sources_list(sources_rect, buf);
+        self.render_compress_settings_list(compress_settings_rect, buf);
         self.render_files_list(files_rect, buf);
-
-        settings_block.render(settings_rect, buf);
     }
 
     fn render_sources_list(&mut self, area: Rect, buf: &mut Buffer) {
@@ -174,6 +170,21 @@ impl App {
             .collect();
         let list = List::new(items).block(sources_block).highlight_symbol(">");
         StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[0]);
+    }
+
+    fn render_compress_settings_list(&mut self, area: Rect, buf: &mut Buffer) {
+        let settings_block = Block::bordered()
+            .title(Line::from(" Settings ").centered())
+            .border_set(border::ROUNDED);
+        let items: Vec<ListItem> = self
+            .ffmpeg_manager
+            .compress_settings
+            .get_all_fields()
+            .iter()
+            .map(|settings| ListItem::from(settings.to_string()))
+            .collect();
+        let list = List::new(items).block(settings_block).highlight_symbol(">");
+        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[1]);
     }
 
     fn render_files_list(&mut self, area: Rect, buf: &mut Buffer) {
@@ -205,21 +216,13 @@ impl Widget for &mut App {
             .title_bottom(instructions.centered())
             .border_set(border::ROUNDED);
 
-        let [main_page, command, progress] =
-            Layout::vertical([Min(0), Length(3), Length(3)]).areas(block.inner(area));
+        let [main_page, command] = Layout::vertical([Min(0), Length(3)]).areas(block.inner(area));
         let command_block = Block::bordered()
             .border_set(border::ROUNDED)
             .title(Line::from(" Command ").centered());
-        let progress_block = Block::bordered()
-            .border_set(border::ROUNDED)
-            .title(Line::from(" ffmpeg progress ").centered());
         let ffmpeg_command = Paragraph::new("ffmpeg ...").block(command_block);
-        let progress_bar = Gauge::default().block(progress_block).ratio(0.5);
-
         block.render(area, buf);
-
         ffmpeg_command.render(command, buf);
-        progress_bar.render(progress, buf);
 
         self.render_settings(main_page, buf);
     }
