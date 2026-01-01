@@ -3,6 +3,7 @@ use ratatui::widgets::ListState;
 use serde_json::Value;
 use std::fmt::Display;
 use std::io::{Error, ErrorKind};
+use std::mem::discriminant;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -256,6 +257,16 @@ impl FfmpegManager {
             }
         }
         None
+    }
+
+    pub fn toggle_default(&mut self, index: usize) {
+        let new_value = !self.stream_settings[index].default;
+        let stream_type = discriminant(&self.stream_settings[index].stream.stream_type);
+        self.stream_settings
+            .iter_mut()
+            .filter(|s| discriminant(&s.stream.stream_type) == stream_type)
+            .for_each(|s| s.default = false);
+        self.stream_settings[index].default = new_value;
     }
 }
 

@@ -55,7 +55,8 @@ impl App {
             HotKey::new("Close app", KeyCode::Char('c')),
         ];
         if let Some(_) = self.ffmpeg_manager.selections[0].selected() {
-            result.push(HotKey::new("Toggle enabled", KeyCode::Enter))
+            result.push(HotKey::new("Toggle enabled", KeyCode::Enter));
+            result.push(HotKey::new("Toggle default", KeyCode::Char('d')));
         }
         self.hotkeys = result;
     }
@@ -110,6 +111,11 @@ impl App {
                 if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
                     self.ffmpeg_manager.stream_settings[selection].enabled =
                         !self.ffmpeg_manager.stream_settings[selection].enabled;
+                }
+            }
+            KeyCode::Char('d') => {
+                if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
+                    self.ffmpeg_manager.toggle_default(selection);
                 }
             }
             _ => {}
