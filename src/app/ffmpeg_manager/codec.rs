@@ -11,6 +11,15 @@ pub enum VideoCodec {
     Copy,
 }
 
+impl VideoCodec {
+    pub fn is_vaapi(&self) -> bool {
+        match self {
+            VideoCodec::H264Vaapi | VideoCodec::HevcVaapi | VideoCodec::Av1Vaapi => true,
+            _ => false,
+        }
+    }
+}
+
 impl Display for VideoCodec {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

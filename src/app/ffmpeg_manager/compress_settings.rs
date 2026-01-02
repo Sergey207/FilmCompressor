@@ -1,4 +1,5 @@
 use crate::app::ffmpeg_manager::codec::{AudioCodec, PixelFormat, SubtitleCodec, VideoCodec};
+use std::fmt::format;
 
 #[derive(Debug)]
 pub struct CompressSettings {
@@ -35,6 +36,65 @@ impl CompressSettings {
             ),
             format!("Other settings: {}", self.other_settings),
         ]
+    }
+
+    pub fn get_init_arguments(self) -> Vec<String> {
+        let mut result = Vec::new();
+        if self.video_codec.is_vaapi() {
+            result.extend(vec![
+                "-hwaccel".to_string(),
+                "vaapi".to_string(),
+                "-init_hw_device".to_string(),
+                "vaapi=intel:/dev/dri/renderD128".to_string(),
+            ]);
+        }
+        result
+    }
+    pub fn get_compress_arguments(self) -> Vec<String> {
+        let mut result = Vec::new();
+        result.extend(vec![
+            "-c:v".to_string(),
+            self.video_codec.to_string(),
+            "-c:a".to_string(),
+            self.audio_codec.to_string(),
+            "-c:s".to_string(),
+            self.subtitle_codec.to_string(),
+        ]);
+
+        if let Some(video_bitrate) = self.video_bitrate {
+            result.extend(vec![
+                "-b:v".to_string(),
+                video_bitrate,
+            ]);
+        }
+        if let Some(audio_bitrate) = self.audio_bitrate {
+            result.extend(vec![
+                "-b:a".to_string(),
+                audio_bitrate,
+            ]);
+        }
+
+        if self.video_codec.is_vaapi() || self.scale.is_some() {
+            let mut video_format = String::new();
+            if self.video_codec.is_vaapi() {
+                video_format += "hwupload";
+                if let Some(scale) = self.scale {
+                    video_format = format!(",scale_vaapi={}", scale);
+                }
+            } else if let Some(scale) = self.scale {
+                video_format = format!("scale={}", scale);
+            }
+            result.extend(vec![
+                "-vf".to_string(),
+                format!("\"{}\"", video_format).to_string(),
+            ]);
+        }
+
+        if !self.other_settings.is_empty() {
+            result.push(self.other_settings);
+        }
+
+        result
     }
 }
 
