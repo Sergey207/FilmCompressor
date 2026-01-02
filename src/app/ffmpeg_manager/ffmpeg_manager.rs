@@ -1,5 +1,4 @@
 use crate::app::ffmpeg_manager::compress_settings::CompressSettings;
-use ratatui::widgets::ListState;
 use serde_json::Value;
 use std::fmt::Display;
 use std::io::{Error, ErrorKind};
@@ -31,6 +30,28 @@ pub enum StreamType {
     Audio(AudioData),
     Subtitle(SubtitleData),
     Attachment,
+}
+
+impl StreamType {
+    pub fn to_index(&self) -> usize {
+        match self {
+            StreamType::Video(_) => 0,
+            StreamType::Audio(_) => 1,
+            StreamType::Subtitle(_) => 2,
+            StreamType::Attachment => 3,
+        }
+    }
+}
+
+impl Display for StreamType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(match self {
+            StreamType::Video(_) => "v",
+            StreamType::Audio(_) => "a",
+            StreamType::Subtitle(_) => "s",
+            StreamType::Attachment => "t",
+        })
+    }
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -194,7 +215,6 @@ pub struct FfmpegManager {
     pub input_files: Vec<InputFile>,
     pub stream_settings: Vec<FfmpegStreamSettings>,
     pub compress_settings: CompressSettings,
-    pub selections: [ListState; 3],
 }
 
 impl FfmpegManager {
@@ -221,6 +241,15 @@ impl FfmpegManager {
         }
     }
 
+    pub fn add_path(&mut self, path: PathBuf) {
+        if path.exists() {
+            if path.is_file() {
+                self.add_file(path);
+            } else {
+                self.add_folder(path);
+            }
+        }
+    }
     pub fn update_stream_settings(&mut self) {
         self.stream_settings.clear();
         let mut sources = Vec::new();
@@ -250,15 +279,6 @@ impl FfmpegManager {
         }
     }
 
-    pub fn get_selected(&self) -> Option<usize> {
-        for i in 0..3 {
-            if self.selections[i].selected().is_some() {
-                return Some(i);
-            }
-        }
-        None
-    }
-
     pub fn toggle_default(&mut self, index: usize) {
         let new_value = !self.stream_settings[index].default;
         let stream_type = discriminant(&self.stream_settings[index].stream.stream_type);
@@ -269,13 +289,58 @@ impl FfmpegManager {
         self.stream_settings[index].default = new_value;
     }
 
-    pub fn get_command_string(&self) -> String {
+    pub fn get_command_template(&self) -> String {
         let mut result = vec!["ffmpeg".to_string()];
         result.extend(self.compress_settings.get_init_arguments());
-        result.push("<input files> <streams>".to_string());
+        result.push("<input file> <streams>".to_string());
         result.extend(self.compress_settings.get_compress_arguments());
-        result.push("output_file".to_string());
+        result.push("<output file>".to_string());
         result.join(" ")
+    }
+
+    fn get_command_streams(&self, input_file: &InputFile) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut source_indexes = [0; 4];
+        input_file.sources.iter().for_each(|source| {
+            let stream_setting = self
+                .stream_settings
+                .iter()
+                .find(|ss| ss.stream == *source)
+                .unwrap();
+            let source_index = stream_setting.stream.stream_type.to_index();
+            if stream_setting.enabled {
+                result.extend(vec![
+                    "-map".to_string(),
+                    format!("0:{}:{}", source.stream_type, source_indexes[source_index]),
+                ]);
+            }
+            if stream_setting.default {
+                result.extend(vec![
+                    format!("-disposition:{}", source.stream_type),
+                    (source_indexes[source_index] + 1).to_string(),
+                ]);
+            }
+            source_indexes[source_index] += 1;
+        });
+        result
+    }
+
+    pub fn get_command(&self, input_file: &InputFile, output_path: &PathBuf) -> Vec<String> {
+        let mut result = vec![];
+        result.extend(self.compress_settings.get_init_arguments());
+        result.push("-i".to_string());
+        result.push(
+            input_file
+                .path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        );
+        result.extend(self.get_command_streams(input_file));
+        result.extend(self.compress_settings.get_compress_arguments());
+        result.push(output_path.to_string_lossy().to_string());
+        result
     }
 }
 
@@ -285,7 +350,6 @@ impl Default for FfmpegManager {
             input_files: Vec::new(),
             stream_settings: Vec::new(),
             compress_settings: CompressSettings::default(),
-            selections: [ListState::default(); 3],
         }
     }
 }

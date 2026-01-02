@@ -16,30 +16,39 @@ use ratatui::{
     widgets::{Block, Widget},
 };
 use std::cmp::min;
-use std::io;
+use std::fs::create_dir;
 use std::path::PathBuf;
+use std::process::Command;
+use std::{env, io};
 use strum::IntoEnumIterator;
 
 pub struct App {
     exit: bool,
     hotkeys: Vec<HotKey>,
     ffmpeg_manager: FfmpegManager,
+    selections: [ListState; 3],
     selected_compress_setting: ListState,
 }
 
 impl App {
     pub fn new() -> Self {
-        let mut ffmpeg_manager = FfmpegManager::default();
-        ffmpeg_manager.add_folder(PathBuf::from(
-            "/home/sergey/Videos/Пацаны/The.Boys.S02.1080p.AMZN.WEBRip.DDP5.1.x264-NTb.TeamHD/",
-        ));
         let mut new_app = Self {
             exit: false,
             hotkeys: Vec::new(),
-            ffmpeg_manager,
+            ffmpeg_manager: FfmpegManager::default(),
+            selections: [ListState::default(); 3],
             selected_compress_setting: ListState::default(),
         };
         new_app.update_hotkeys();
+        let args = env::args().collect::<Vec<_>>();
+        match args.len() {
+            1 => new_app
+                .ffmpeg_manager
+                .add_folder(env::current_dir().unwrap()),
+            _ => args[1..].iter().for_each(|arg| {
+                new_app.ffmpeg_manager.add_path(PathBuf::from(arg));
+            }),
+        }
         new_app
     }
 
@@ -53,17 +62,37 @@ impl App {
         Ok(())
     }
 
+    pub fn get_selected(&self) -> Option<usize> {
+        for i in 0..3 {
+            if self.selections[i].selected().is_some() {
+                return Some(i);
+            }
+        }
+        None
+    }
+
     fn update_hotkeys(&mut self) {
-        let mut result = vec![HotKey {
-            text: "Close app".to_string(),
-            key_event: KeyEvent {
-                code: KeyCode::Char('c'),
-                modifiers: KeyModifiers::CONTROL,
-                kind: KeyEventKind::Press,
-                state: KeyEventState::empty(),
+        let mut result = vec![
+            HotKey {
+                text: "Run".to_string(),
+                key_event: KeyEvent {
+                    code: KeyCode::Char('r'),
+                    modifiers: KeyModifiers::CONTROL,
+                    kind: KeyEventKind::Press,
+                    state: KeyEventState::empty(),
+                },
             },
-        }];
-        if let Some(_) = self.ffmpeg_manager.selections[0].selected() {
+            HotKey {
+                text: "Close app".to_string(),
+                key_event: KeyEvent {
+                    code: KeyCode::Char('c'),
+                    modifiers: KeyModifiers::CONTROL,
+                    kind: KeyEventKind::Press,
+                    state: KeyEventState::empty(),
+                },
+            },
+        ];
+        if let Some(_) = self.selections[0].selected() {
             result.push(HotKey {
                 text: "Toggle enabled".to_string(),
                 key_event: KeyEvent {
@@ -82,7 +111,7 @@ impl App {
                     state: KeyEventState::empty(),
                 },
             });
-        } else if let Some(_) = self.ffmpeg_manager.selections[1].selected() {
+        } else if let Some(_) = self.selections[1].selected() {
             result.push(HotKey {
                 text: "Change".to_string(),
                 key_event: KeyEvent {
@@ -121,8 +150,44 @@ impl App {
         Ok(())
     }
 
+    fn run_compressing(&mut self) {
+        let mut index = 0usize;
+        let mut output_folder;
+        loop {
+            output_folder = env::current_dir().unwrap().clone();
+            if index == 0 {
+                output_folder.push("output");
+            } else {
+                output_folder.push(format!("output ({})", index));
+            }
+            if !output_folder.exists() {
+                break;
+            }
+            index += 1;
+        }
+        create_dir(&output_folder).unwrap();
+        self.ffmpeg_manager
+            .input_files
+            .iter()
+            .for_each(|input_file| {
+                let mut output_file = output_folder.clone();
+                output_file.push(input_file.path.file_name().unwrap().to_str().unwrap());
+                let ffmpeg_command = self.ffmpeg_manager.get_command(input_file, &output_file);
+                Command::new("ffmpeg")
+                    .args(&ffmpeg_command)
+                    .output()
+                    .unwrap();
+            });
+        self.exit = true;
+    }
+
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
+            KeyCode::Char('r') => {
+                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.run_compressing();
+                }
+            }
             KeyCode::Char('q') | KeyCode::Char('c') => {
                 if key_event.modifiers.contains(KeyModifiers::CONTROL) {
                     self.exit = true;
@@ -136,7 +201,7 @@ impl App {
                 }
             }
             KeyCode::Up | KeyCode::Down => {
-                let selected = self.ffmpeg_manager.get_selected();
+                let selected = self.get_selected();
                 if let Some(selected) = selected {
                     if self.selected_compress_setting.selected().is_some() {
                         match key_event.code {
@@ -146,37 +211,35 @@ impl App {
                         }
                     } else {
                         match key_event.code {
-                            KeyCode::Up => {
-                                self.ffmpeg_manager.selections[selected].select_previous()
-                            }
-                            KeyCode::Down => self.ffmpeg_manager.selections[selected].select_next(),
+                            KeyCode::Up => self.selections[selected].select_previous(),
+                            KeyCode::Down => self.selections[selected].select_next(),
                             _ => {}
                         }
                     }
                 } else {
-                    self.ffmpeg_manager.selections[0].select_first();
+                    self.selections[0].select_first();
                 }
             }
             KeyCode::Left | KeyCode::Right => {
-                let selected = self.ffmpeg_manager.get_selected();
+                let selected = self.get_selected();
                 if let Some(mut selected) = selected {
-                    self.ffmpeg_manager.selections[selected].select(None);
+                    self.selections[selected].select(None);
                     if key_event.code == KeyCode::Left {
                         selected = selected.saturating_sub(1);
                     } else {
                         selected = min(selected + 1, 2);
                     }
-                    self.ffmpeg_manager.selections[selected].select_first();
+                    self.selections[selected].select_first();
                 } else {
-                    self.ffmpeg_manager.selections[0].select_first();
+                    self.selections[0].select_first();
                 }
                 self.selected_compress_setting.select(None);
             }
             KeyCode::Enter => {
-                if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
+                if let Some(selection) = self.selections[0].selected() {
                     self.ffmpeg_manager.stream_settings[selection].enabled =
                         !self.ffmpeg_manager.stream_settings[selection].enabled;
-                } else if let Some(selection) = self.ffmpeg_manager.selections[1].selected() {
+                } else if let Some(selection) = self.selections[1].selected() {
                     if let Some(compress_setting_selection) =
                         self.selected_compress_setting.selected()
                     {
@@ -215,7 +278,7 @@ impl App {
             }
             KeyCode::Char('d') => {
                 if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
+                    if let Some(selection) = self.selections[0].selected() {
                         self.ffmpeg_manager.toggle_default(selection);
                     }
                 }
@@ -245,7 +308,7 @@ impl App {
             .map(|source| ListItem::from(source.to_string()))
             .collect();
         let list = List::new(items).block(sources_block).highlight_symbol(">");
-        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[0]);
+        StatefulWidget::render(list, area, buf, &mut self.selections[0]);
     }
 
     fn render_compress_settings_list(&mut self, area: Rect, buf: &mut Buffer) {
@@ -254,7 +317,7 @@ impl App {
             .border_set(border::ROUNDED);
         let mut items = vec![];
         if self.selected_compress_setting.selected().is_some() {
-            items = match self.ffmpeg_manager.selections[1].selected().unwrap() {
+            items = match self.selections[1].selected().unwrap() {
                 0 => VideoCodec::iter()
                     .map(|codec| {
                         let mut result = String::new();
@@ -317,7 +380,7 @@ impl App {
                 .map(|settings| ListItem::from(settings.to_string()))
                 .collect();
             let list = List::new(items).block(settings_block).highlight_symbol(">");
-            StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[1]);
+            StatefulWidget::render(list, area, buf, &mut self.selections[1]);
         }
     }
 
@@ -333,7 +396,7 @@ impl App {
             .map(|file| ListItem::from(file.path.file_name().unwrap().to_string_lossy()))
             .collect();
         let list = List::new(items).block(files_block).highlight_symbol(">");
-        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[2]);
+        StatefulWidget::render(list, area, buf, &mut self.selections[2]);
     }
 }
 
@@ -354,8 +417,9 @@ impl Widget for &mut App {
         let command_block = Block::bordered()
             .border_set(border::ROUNDED)
             .title(Line::from(" Command ").centered());
-        let ffmpeg_command =
-            Paragraph::new(self.ffmpeg_manager.get_command_string()).wrap(Wrap { trim: false }).block(command_block);
+        let ffmpeg_command = Paragraph::new(self.ffmpeg_manager.get_command_template())
+            .wrap(Wrap { trim: false })
+            .block(command_block);
         block.render(area, buf);
         ffmpeg_command.render(command, buf);
 

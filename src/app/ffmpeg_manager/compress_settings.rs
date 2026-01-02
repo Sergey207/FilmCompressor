@@ -60,41 +60,33 @@ impl CompressSettings {
             self.subtitle_codec.to_string(),
         ]);
 
+        if self.audio_codec == AudioCodec::Libopus {
+            result.extend(vec!["-ac".to_string(), "2".to_string()]);
+        }
+
         if let Some(video_bitrate) = self.video_bitrate.clone() {
-            result.extend(vec![
-                "-b:v".to_string(),
-                video_bitrate,
-            ]);
+            result.extend(vec!["-b:v".to_string(), video_bitrate]);
         }
         if let Some(audio_bitrate) = self.audio_bitrate.clone() {
-            result.extend(vec![
-                "-b:a".to_string(),
-                audio_bitrate,
-            ]);
+            result.extend(vec!["-b:a".to_string(), audio_bitrate]);
         }
 
         if self.video_codec.is_vaapi() || self.scale.is_some() {
             let mut video_format = String::new();
             if self.video_codec.is_vaapi() {
-                video_format += "hwupload";
                 if let Some(scale) = self.scale.clone() {
-                    video_format = format!(",scale_vaapi={}", scale);
+                    video_format = format!("scale_vaapi={},", scale);
                 }
-                video_format += &format!(",format={}", self.pixel_format);
+                video_format += &format!("format={},", self.pixel_format);
+                video_format += "hwupload";
             } else if let Some(scale) = self.scale.clone() {
                 video_format = format!("scale={}", scale);
             }
-            result.extend(vec![
-                "-vf".to_string(),
-                format!("\"{}\"", video_format).to_string(),
-            ]);
+            result.extend(vec!["-vf".to_string(), video_format]);
         }
 
         if !self.video_codec.is_vaapi() {
-            result.extend(vec![
-                "-pix_fmt".to_string(),
-                self.pixel_format.to_string()
-            ]);
+            result.extend(vec!["-pix_fmt".to_string(), self.pixel_format.to_string()]);
         }
 
         if !self.other_settings.is_empty() {
