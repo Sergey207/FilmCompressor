@@ -1,5 +1,4 @@
 use crate::app::ffmpeg_manager::codec::{AudioCodec, PixelFormat, SubtitleCodec, VideoCodec};
-use std::fmt::format;
 
 #[derive(Debug)]
 pub struct CompressSettings {
