@@ -37,7 +37,7 @@ impl CompressSettings {
         ]
     }
 
-    pub fn get_init_arguments(self) -> Vec<String> {
+    pub fn get_init_arguments(&self) -> Vec<String> {
         let mut result = Vec::new();
         if self.video_codec.is_vaapi() {
             result.extend(vec![
@@ -49,7 +49,7 @@ impl CompressSettings {
         }
         result
     }
-    pub fn get_compress_arguments(self) -> Vec<String> {
+    pub fn get_compress_arguments(&self) -> Vec<String> {
         let mut result = Vec::new();
         result.extend(vec![
             "-c:v".to_string(),
@@ -60,13 +60,13 @@ impl CompressSettings {
             self.subtitle_codec.to_string(),
         ]);
 
-        if let Some(video_bitrate) = self.video_bitrate {
+        if let Some(video_bitrate) = self.video_bitrate.clone() {
             result.extend(vec![
                 "-b:v".to_string(),
                 video_bitrate,
             ]);
         }
-        if let Some(audio_bitrate) = self.audio_bitrate {
+        if let Some(audio_bitrate) = self.audio_bitrate.clone() {
             result.extend(vec![
                 "-b:a".to_string(),
                 audio_bitrate,
@@ -77,10 +77,11 @@ impl CompressSettings {
             let mut video_format = String::new();
             if self.video_codec.is_vaapi() {
                 video_format += "hwupload";
-                if let Some(scale) = self.scale {
+                if let Some(scale) = self.scale.clone() {
                     video_format = format!(",scale_vaapi={}", scale);
                 }
-            } else if let Some(scale) = self.scale {
+                video_format += &format!(",format={}", self.pixel_format);
+            } else if let Some(scale) = self.scale.clone() {
                 video_format = format!("scale={}", scale);
             }
             result.extend(vec![
@@ -89,8 +90,15 @@ impl CompressSettings {
             ]);
         }
 
+        if !self.video_codec.is_vaapi() {
+            result.extend(vec![
+                "-pix_fmt".to_string(),
+                self.pixel_format.to_string()
+            ]);
+        }
+
         if !self.other_settings.is_empty() {
-            result.push(self.other_settings);
+            result.push(self.other_settings.to_string());
         }
 
         result

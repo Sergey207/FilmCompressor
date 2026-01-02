@@ -268,6 +268,15 @@ impl FfmpegManager {
             .for_each(|s| s.default = false);
         self.stream_settings[index].default = new_value;
     }
+
+    pub fn get_command_string(&self) -> String {
+        let mut result = vec!["ffmpeg".to_string()];
+        result.extend(self.compress_settings.get_init_arguments());
+        result.push("<input files> <streams>".to_string());
+        result.extend(self.compress_settings.get_compress_arguments());
+        result.push("output_file".to_string());
+        result.join(" ")
+    }
 }
 
 impl Default for FfmpegManager {

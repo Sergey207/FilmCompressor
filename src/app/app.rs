@@ -5,7 +5,7 @@ use crate::app::hotkey::HotKey;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use ratatui::layout::Constraint::{Fill, Length, Min};
 use ratatui::style::Stylize;
-use ratatui::widgets::{List, ListItem, ListState, Paragraph, StatefulWidget};
+use ratatui::widgets::{List, ListItem, ListState, Paragraph, StatefulWidget, Wrap};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -350,11 +350,12 @@ impl Widget for &mut App {
             .title_bottom(instructions.centered())
             .border_set(border::ROUNDED);
 
-        let [main_page, command] = Layout::vertical([Min(0), Length(3)]).areas(block.inner(area));
+        let [main_page, command] = Layout::vertical([Min(0), Length(4)]).areas(block.inner(area));
         let command_block = Block::bordered()
             .border_set(border::ROUNDED)
             .title(Line::from(" Command ").centered());
-        let ffmpeg_command = Paragraph::new("ffmpeg ...").block(command_block);
+        let ffmpeg_command =
+            Paragraph::new(self.ffmpeg_manager.get_command_string()).wrap(Wrap { trim: false }).block(command_block);
         block.render(area, buf);
         ffmpeg_command.render(command, buf);
 
