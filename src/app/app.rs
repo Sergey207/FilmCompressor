@@ -1,9 +1,11 @@
-use crate::app::ffmpeg_manager::FfmpegManager;
+use crate::app::ffmpeg_manager::{
+    AudioCodec, FfmpegManager, PixelFormat, SubtitleCodec, VideoCodec,
+};
 use crate::app::hotkey::HotKey;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use ratatui::layout::Constraint::{Fill, Length, Min};
 use ratatui::style::Stylize;
-use ratatui::widgets::{List, ListItem, Paragraph, StatefulWidget};
+use ratatui::widgets::{List, ListItem, ListState, Paragraph, StatefulWidget};
 use ratatui::{
     DefaultTerminal, Frame,
     buffer::Buffer,
@@ -16,11 +18,13 @@ use ratatui::{
 use std::cmp::min;
 use std::io;
 use std::path::PathBuf;
+use strum::IntoEnumIterator;
 
 pub struct App {
     exit: bool,
     hotkeys: Vec<HotKey>,
     ffmpeg_manager: FfmpegManager,
+    selected_compress_setting: ListState,
 }
 
 impl App {
@@ -33,6 +37,7 @@ impl App {
             exit: false,
             hotkeys: Vec::new(),
             ffmpeg_manager,
+            selected_compress_setting: ListState::default(),
         };
         new_app.update_hotkeys();
         new_app
@@ -77,6 +82,27 @@ impl App {
                     state: KeyEventState::empty(),
                 },
             });
+        } else if let Some(_) = self.ffmpeg_manager.selections[1].selected() {
+            result.push(HotKey {
+                text: "Change".to_string(),
+                key_event: KeyEvent {
+                    code: KeyCode::Enter,
+                    modifiers: KeyModifiers::empty(),
+                    kind: KeyEventKind::Press,
+                    state: KeyEventState::empty(),
+                },
+            });
+            if self.selected_compress_setting.selected().is_some() {
+                result.push(HotKey {
+                    text: "Exit".to_string(),
+                    key_event: KeyEvent {
+                        code: KeyCode::Esc,
+                        modifiers: KeyModifiers::empty(),
+                        kind: KeyEventKind::Press,
+                        state: KeyEventState::empty(),
+                    },
+                })
+            }
         }
         self.hotkeys = result;
     }
@@ -103,15 +129,29 @@ impl App {
                 }
             }
             KeyCode::Esc => {
-                self.exit = true;
+                if self.selected_compress_setting.selected().is_some() {
+                    self.selected_compress_setting.select(None);
+                } else {
+                    self.exit = true;
+                }
             }
             KeyCode::Up | KeyCode::Down => {
                 let selected = self.ffmpeg_manager.get_selected();
                 if let Some(selected) = selected {
-                    match key_event.code {
-                        KeyCode::Up => self.ffmpeg_manager.selections[selected].select_previous(),
-                        KeyCode::Down => self.ffmpeg_manager.selections[selected].select_next(),
-                        _ => {}
+                    if self.selected_compress_setting.selected().is_some() {
+                        match key_event.code {
+                            KeyCode::Up => self.selected_compress_setting.select_previous(),
+                            KeyCode::Down => self.selected_compress_setting.select_next(),
+                            _ => {}
+                        }
+                    } else {
+                        match key_event.code {
+                            KeyCode::Up => {
+                                self.ffmpeg_manager.selections[selected].select_previous()
+                            }
+                            KeyCode::Down => self.ffmpeg_manager.selections[selected].select_next(),
+                            _ => {}
+                        }
                     }
                 } else {
                     self.ffmpeg_manager.selections[0].select_first();
@@ -130,11 +170,47 @@ impl App {
                 } else {
                     self.ffmpeg_manager.selections[0].select_first();
                 }
+                self.selected_compress_setting.select(None);
             }
             KeyCode::Enter => {
                 if let Some(selection) = self.ffmpeg_manager.selections[0].selected() {
                     self.ffmpeg_manager.stream_settings[selection].enabled =
                         !self.ffmpeg_manager.stream_settings[selection].enabled;
+                } else if let Some(selection) = self.ffmpeg_manager.selections[1].selected() {
+                    if let Some(compress_setting_selection) =
+                        self.selected_compress_setting.selected()
+                    {
+                        match selection {
+                            0 => {
+                                self.ffmpeg_manager.compress_settings.video_codec =
+                                    VideoCodec::iter().collect::<Vec<VideoCodec>>()
+                                        [compress_setting_selection]
+                                        .clone()
+                            }
+                            1 => {
+                                self.ffmpeg_manager.compress_settings.pixel_format =
+                                    PixelFormat::iter().collect::<Vec<PixelFormat>>()
+                                        [compress_setting_selection]
+                                        .clone()
+                            }
+                            2 => {
+                                self.ffmpeg_manager.compress_settings.audio_codec =
+                                    AudioCodec::iter().collect::<Vec<AudioCodec>>()
+                                        [compress_setting_selection]
+                                        .clone()
+                            }
+                            3 => {
+                                self.ffmpeg_manager.compress_settings.subtitle_codec =
+                                    SubtitleCodec::iter().collect::<Vec<SubtitleCodec>>()
+                                        [compress_setting_selection]
+                                        .clone()
+                            }
+                            _ => {}
+                        }
+                        self.selected_compress_setting.select(None);
+                    } else {
+                        self.selected_compress_setting.select_first();
+                    }
                 }
             }
             KeyCode::Char('d') => {
@@ -176,15 +252,73 @@ impl App {
         let settings_block = Block::bordered()
             .title(Line::from(" Settings ").centered())
             .border_set(border::ROUNDED);
-        let items: Vec<ListItem> = self
-            .ffmpeg_manager
-            .compress_settings
-            .get_all_fields()
-            .iter()
-            .map(|settings| ListItem::from(settings.to_string()))
-            .collect();
-        let list = List::new(items).block(settings_block).highlight_symbol(">");
-        StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[1]);
+        let mut items = vec![];
+        if self.selected_compress_setting.selected().is_some() {
+            items = match self.ffmpeg_manager.selections[1].selected().unwrap() {
+                0 => VideoCodec::iter()
+                    .map(|codec| {
+                        let mut result = String::new();
+                        result += if codec == self.ffmpeg_manager.compress_settings.video_codec {
+                            "[X] "
+                        } else {
+                            "[ ] "
+                        };
+                        result += &codec.to_string();
+                        ListItem::new(result)
+                    })
+                    .collect(),
+                1 => PixelFormat::iter()
+                    .map(|codec| {
+                        let mut result = String::new();
+                        result += if codec == self.ffmpeg_manager.compress_settings.pixel_format {
+                            "[X] "
+                        } else {
+                            "[ ] "
+                        };
+                        result += &codec.to_string();
+                        ListItem::new(result)
+                    })
+                    .collect(),
+                2 => AudioCodec::iter()
+                    .map(|codec| {
+                        let mut result = String::new();
+                        result += if codec == self.ffmpeg_manager.compress_settings.audio_codec {
+                            "[X] "
+                        } else {
+                            "[ ] "
+                        };
+                        result += &codec.to_string();
+                        ListItem::new(result)
+                    })
+                    .collect(),
+                3 => SubtitleCodec::iter()
+                    .map(|codec| {
+                        let mut result = String::new();
+                        result += if codec == self.ffmpeg_manager.compress_settings.subtitle_codec {
+                            "[X] "
+                        } else {
+                            "[ ] "
+                        };
+                        result += &codec.to_string();
+                        ListItem::new(result)
+                    })
+                    .collect(),
+
+                _ => vec![],
+            };
+            let list = List::new(items).block(settings_block).highlight_symbol(">");
+            StatefulWidget::render(list, area, buf, &mut self.selected_compress_setting);
+        } else {
+            items = self
+                .ffmpeg_manager
+                .compress_settings
+                .get_all_fields()
+                .iter()
+                .map(|settings| ListItem::from(settings.to_string()))
+                .collect();
+            let list = List::new(items).block(settings_block).highlight_symbol(">");
+            StatefulWidget::render(list, area, buf, &mut self.ffmpeg_manager.selections[1]);
+        }
     }
 
     fn render_files_list(&mut self, area: Rect, buf: &mut Buffer) {

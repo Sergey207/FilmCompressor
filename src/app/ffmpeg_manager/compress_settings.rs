@@ -2,16 +2,16 @@ use crate::app::ffmpeg_manager::codec::{AudioCodec, PixelFormat, SubtitleCodec, 
 
 #[derive(Debug)]
 pub struct CompressSettings {
-    video_codec: VideoCodec,
-    pixel_format: PixelFormat,
-    audio_codec: AudioCodec,
-    subtitle_codec: SubtitleCodec,
+    pub video_codec: VideoCodec,
+    pub pixel_format: PixelFormat,
+    pub audio_codec: AudioCodec,
+    pub subtitle_codec: SubtitleCodec,
 
-    video_bitrate: Option<String>,
-    audio_bitrate: Option<String>,
+    pub video_bitrate: Option<String>,
+    pub audio_bitrate: Option<String>,
 
-    scale: Option<String>,
-    other_settings: String,
+    pub scale: Option<String>,
+    pub other_settings: String,
 }
 
 impl CompressSettings {

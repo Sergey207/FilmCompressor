@@ -1,6 +1,7 @@
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
+use strum_macros::EnumIter;
 
-#[derive(Debug)]
+#[derive(Debug, EnumIter, PartialEq, Eq, Clone)]
 pub enum VideoCodec {
     Libx264,
     H264Vaapi,
@@ -27,7 +28,7 @@ impl Default for VideoCodec {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EnumIter, PartialEq, Eq, Clone)]
 pub enum AudioCodec {
     Libopus,
 }
@@ -46,7 +47,7 @@ impl Default for AudioCodec {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EnumIter, PartialEq, Eq, Clone)]
 pub enum SubtitleCodec {
     Srt,
     Ass,
@@ -67,7 +68,7 @@ impl Default for SubtitleCodec {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EnumIter, PartialEq, Eq, Clone)]
 pub enum PixelFormat {
     Yuv420p,
     Nv10,

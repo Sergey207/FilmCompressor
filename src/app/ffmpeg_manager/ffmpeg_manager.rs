@@ -180,7 +180,7 @@ pub struct FfmpegStreamSettings {
 impl Display for FfmpegStreamSettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = String::new();
-        result += if self.enabled { "[X] " } else { "[] " };
+        result += if self.enabled { "[X] " } else { "[ ] " };
         if self.default {
             result += "[D] ";
         }
