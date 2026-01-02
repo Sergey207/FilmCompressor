@@ -62,13 +62,8 @@ impl App {
         Ok(())
     }
 
-    pub fn get_selected(&self) -> Option<usize> {
-        for i in 0..3 {
-            if self.selections[i].selected().is_some() {
-                return Some(i);
-            }
-        }
-        None
+    fn draw(&mut self, frame: &mut Frame) {
+        frame.render_widget(self, frame.area());
     }
 
     fn update_hotkeys(&mut self) {
@@ -92,52 +87,73 @@ impl App {
                 },
             },
         ];
-        if let Some(_) = self.selections[0].selected() {
-            result.push(HotKey {
-                text: "Toggle enabled".to_string(),
-                key_event: KeyEvent {
-                    code: KeyCode::Enter,
-                    modifiers: KeyModifiers::empty(),
-                    kind: KeyEventKind::Press,
-                    state: KeyEventState::empty(),
-                },
-            });
-            result.push(HotKey {
-                text: "Toggle default".to_string(),
-                key_event: KeyEvent {
-                    code: KeyCode::Char('d'),
-                    modifiers: KeyModifiers::CONTROL,
-                    kind: KeyEventKind::Press,
-                    state: KeyEventState::empty(),
-                },
-            });
-        } else if let Some(_) = self.selections[1].selected() {
-            result.push(HotKey {
-                text: "Change".to_string(),
-                key_event: KeyEvent {
-                    code: KeyCode::Enter,
-                    modifiers: KeyModifiers::empty(),
-                    kind: KeyEventKind::Press,
-                    state: KeyEventState::empty(),
-                },
-            });
-            if self.selected_compress_setting.selected().is_some() {
-                result.push(HotKey {
-                    text: "Exit".to_string(),
+        if let Some(selection) = self.get_selected() {
+            match selection {
+                0 => {
+                    result.push(HotKey {
+                        text: "Toggle enabled".to_string(),
+                        key_event: KeyEvent {
+                            code: KeyCode::Enter,
+                            modifiers: KeyModifiers::empty(),
+                            kind: KeyEventKind::Press,
+                            state: KeyEventState::empty(),
+                        },
+                    });
+                    result.push(HotKey {
+                        text: "Toggle default".to_string(),
+                        key_event: KeyEvent {
+                            code: KeyCode::Char('d'),
+                            modifiers: KeyModifiers::CONTROL,
+                            kind: KeyEventKind::Press,
+                            state: KeyEventState::empty(),
+                        },
+                    });
+                }
+                1 => {
+                    result.push(HotKey {
+                        text: "Change".to_string(),
+                        key_event: KeyEvent {
+                            code: KeyCode::Enter,
+                            modifiers: KeyModifiers::empty(),
+                            kind: KeyEventKind::Press,
+                            state: KeyEventState::empty(),
+                        },
+                    });
+                    if self.selected_compress_setting.selected().is_some() {
+                        result.push(HotKey {
+                            text: "Exit".to_string(),
+                            key_event: KeyEvent {
+                                code: KeyCode::Esc,
+                                modifiers: KeyModifiers::empty(),
+                                kind: KeyEventKind::Press,
+                                state: KeyEventState::empty(),
+                            },
+                        })
+                    }
+                }
+                2 => result.push(HotKey {
+                    text: "Delete file from list".to_string(),
                     key_event: KeyEvent {
-                        code: KeyCode::Esc,
+                        code: KeyCode::Delete,
                         modifiers: KeyModifiers::empty(),
                         kind: KeyEventKind::Press,
                         state: KeyEventState::empty(),
                     },
-                })
+                }),
+                _ => unreachable!(),
             }
         }
         self.hotkeys = result;
     }
 
-    fn draw(&mut self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
+    /// Returns inde of selected list (0/1/2) or None
+    pub fn get_selected(&self) -> Option<usize> {
+        for i in 0..3 {
+            if self.selections[i].selected().is_some() {
+                return Some(i);
+            }
+        }
+        None
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
@@ -148,37 +164,6 @@ impl App {
             _ => {}
         }
         Ok(())
-    }
-
-    fn run_compressing(&mut self) {
-        let mut index = 0usize;
-        let mut output_folder;
-        loop {
-            output_folder = env::current_dir().unwrap().clone();
-            if index == 0 {
-                output_folder.push("output");
-            } else {
-                output_folder.push(format!("output ({})", index));
-            }
-            if !output_folder.exists() {
-                break;
-            }
-            index += 1;
-        }
-        create_dir(&output_folder).unwrap();
-        self.ffmpeg_manager
-            .input_files
-            .iter()
-            .for_each(|input_file| {
-                let mut output_file = output_folder.clone();
-                output_file.push(input_file.path.file_name().unwrap().to_str().unwrap());
-                let ffmpeg_command = self.ffmpeg_manager.get_command(input_file, &output_file);
-                Command::new("ffmpeg")
-                    .args(&ffmpeg_command)
-                    .output()
-                    .unwrap();
-            });
-        self.exit = true;
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
@@ -201,8 +186,7 @@ impl App {
                 }
             }
             KeyCode::Up | KeyCode::Down => {
-                let selected = self.get_selected();
-                if let Some(selected) = selected {
+                if let Some(selected) = self.get_selected() {
                     if self.selected_compress_setting.selected().is_some() {
                         match key_event.code {
                             KeyCode::Up => self.selected_compress_setting.select_previous(),
@@ -283,9 +267,46 @@ impl App {
                     }
                 }
             }
+            KeyCode::Delete => {
+                if let Some(selection) = self.selections[2].selected() {
+                    self.ffmpeg_manager.input_files.remove(selection);
+                    self.ffmpeg_manager.update_stream_settings();
+                }
+            }
             _ => {}
         }
         self.update_hotkeys();
+    }
+
+    fn run_compressing(&mut self) {
+        let mut index = 0usize;
+        let mut output_folder;
+        loop {
+            output_folder = env::current_dir().unwrap().clone();
+            if index == 0 {
+                output_folder.push("output");
+            } else {
+                output_folder.push(format!("output ({})", index));
+            }
+            if !output_folder.exists() {
+                break;
+            }
+            index += 1;
+        }
+        create_dir(&output_folder).unwrap();
+        self.ffmpeg_manager
+            .input_files
+            .iter()
+            .for_each(|input_file| {
+                let mut output_file = output_folder.clone();
+                output_file.push(input_file.path.file_name().unwrap().to_str().unwrap());
+                let ffmpeg_command = self.ffmpeg_manager.get_command(input_file, &output_file);
+                Command::new("ffmpeg")
+                    .args(&ffmpeg_command)
+                    .output()
+                    .unwrap();
+            });
+        self.exit = true;
     }
 
     fn render_settings(&mut self, area: Rect, buf: &mut Buffer) {
