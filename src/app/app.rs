@@ -28,6 +28,7 @@ pub struct App {
     ffmpeg_manager: FfmpegManager,
     selections: [ListState; 3],
     selected_compress_setting: ListState,
+    editing_string: Option<String>,
 }
 
 impl App {
@@ -38,6 +39,7 @@ impl App {
             ffmpeg_manager: FfmpegManager::default(),
             selections: [ListState::default(); 3],
             selected_compress_setting: ListState::default(),
+            editing_string: None,
         };
         new_app.update_hotkeys();
         let args = env::args().collect::<Vec<_>>();
@@ -119,7 +121,9 @@ impl App {
                             state: KeyEventState::empty(),
                         },
                     });
-                    if self.selected_compress_setting.selected().is_some() {
+                    if self.selected_compress_setting.selected().is_some()
+                        || self.editing_string.is_some()
+                    {
                         result.push(HotKey {
                             text: "Exit".to_string(),
                             key_event: KeyEvent {
@@ -181,6 +185,8 @@ impl App {
             KeyCode::Esc => {
                 if self.selected_compress_setting.selected().is_some() {
                     self.selected_compress_setting.select(None);
+                } else if self.editing_string.is_some() {
+                    self.editing_string = None;
                 } else {
                     self.exit = true;
                 }
@@ -218,45 +224,60 @@ impl App {
                     self.selections[0].select_first();
                 }
                 self.selected_compress_setting.select(None);
+                self.editing_string = None;
             }
             KeyCode::Enter => {
-                if let Some(selection) = self.selections[0].selected() {
-                    self.ffmpeg_manager.stream_settings[selection].enabled =
-                        !self.ffmpeg_manager.stream_settings[selection].enabled;
-                } else if let Some(selection) = self.selections[1].selected() {
-                    if let Some(compress_setting_selection) =
-                        self.selected_compress_setting.selected()
-                    {
-                        match selection {
-                            0 => {
-                                self.ffmpeg_manager.compress_settings.video_codec =
-                                    VideoCodec::iter().collect::<Vec<VideoCodec>>()
-                                        [compress_setting_selection]
-                                        .clone()
-                            }
-                            1 => {
-                                self.ffmpeg_manager.compress_settings.pixel_format =
-                                    PixelFormat::iter().collect::<Vec<PixelFormat>>()
-                                        [compress_setting_selection]
-                                        .clone()
-                            }
-                            2 => {
-                                self.ffmpeg_manager.compress_settings.audio_codec =
-                                    AudioCodec::iter().collect::<Vec<AudioCodec>>()
-                                        [compress_setting_selection]
-                                        .clone()
-                            }
-                            3 => {
-                                self.ffmpeg_manager.compress_settings.subtitle_codec =
-                                    SubtitleCodec::iter().collect::<Vec<SubtitleCodec>>()
-                                        [compress_setting_selection]
-                                        .clone()
-                            }
-                            _ => {}
+                if let Some(selection) = self.get_selected() {
+                    match selection {
+                        0 => {
+                            let selection = self.selections[0].selected().unwrap();
+                            self.ffmpeg_manager.stream_settings[selection].toggle_enabled();
                         }
-                        self.selected_compress_setting.select(None);
-                    } else {
-                        self.selected_compress_setting.select_first();
+                        1 => {
+                            let selection = self.selections[1].selected().unwrap();
+                            if let Some(compress_setting_selection) =
+                                self.selected_compress_setting.selected()
+                            // Codec|pix_fmt comboBox
+                            {
+                                match selection {
+                                    0 => {
+                                        self.ffmpeg_manager.compress_settings.video_codec =
+                                            VideoCodec::iter().collect::<Vec<VideoCodec>>()
+                                                [compress_setting_selection]
+                                                .clone()
+                                    }
+                                    1 => {
+                                        self.ffmpeg_manager.compress_settings.pixel_format =
+                                            PixelFormat::iter().collect::<Vec<PixelFormat>>()
+                                                [compress_setting_selection]
+                                                .clone()
+                                    }
+                                    2 => {
+                                        self.ffmpeg_manager.compress_settings.audio_codec =
+                                            AudioCodec::iter().collect::<Vec<AudioCodec>>()
+                                                [compress_setting_selection]
+                                                .clone()
+                                    }
+                                    3 => {
+                                        self.ffmpeg_manager.compress_settings.subtitle_codec =
+                                            SubtitleCodec::iter().collect::<Vec<SubtitleCodec>>()
+                                                [compress_setting_selection]
+                                                .clone()
+                                    }
+                                    _ => unreachable!(),
+                                }
+                                self.selected_compress_setting.select(None);
+                            } else if self.editing_string.is_some() { // bitrate|scale|other input
+                            } else {
+                                match selection {
+                                    0..4 => self.selected_compress_setting.select_first(),
+                                    4..8 => self.editing_string = Some(String::new()),
+                                    _ => unreachable!(),
+                                }
+                            }
+                        }
+                        2 => {}
+                        _ => unreachable!(),
                     }
                 }
             }
@@ -387,11 +408,13 @@ impl App {
                         ListItem::new(result)
                     })
                     .collect(),
-
-                _ => vec![],
+                _ => unreachable!(),
             };
             let list = List::new(items).block(settings_block).highlight_symbol(">");
             StatefulWidget::render(list, area, buf, &mut self.selected_compress_setting);
+        } else if let Some(editing_string) = self.editing_string.clone() {
+            let input = Paragraph::new(editing_string).block(Block::bordered().title("Input"));
+            input.render(area, buf);
         } else {
             items = self
                 .ffmpeg_manager

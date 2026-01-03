@@ -198,6 +198,12 @@ pub struct FfmpegStreamSettings {
     pub default: bool,
 }
 
+impl FfmpegStreamSettings {
+    pub fn toggle_enabled(&mut self) {
+        self.enabled = !self.enabled;
+    }
+}
+
 impl Display for FfmpegStreamSettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = String::new();
