@@ -29,6 +29,7 @@ pub struct App {
     selections: [ListState; 3],
     selected_compress_setting: ListState,
     editing_string: Option<String>,
+    cursor_position: (u16, u16),
 }
 
 impl App {
@@ -40,6 +41,7 @@ impl App {
             selections: [ListState::default(); 3],
             selected_compress_setting: ListState::default(),
             editing_string: None,
+            cursor_position: (0, 0),
         };
         new_app.update_hotkeys();
         let args = env::args().collect::<Vec<_>>();
@@ -58,6 +60,9 @@ impl App {
         while !self.exit {
             terminal.draw(|frame| {
                 self.draw(frame);
+                if self.editing_string.is_some() {
+                    frame.set_cursor_position(self.cursor_position);
+                }
             })?;
             self.handle_events()?;
         }
@@ -267,7 +272,9 @@ impl App {
                                     _ => unreachable!(),
                                 }
                                 self.selected_compress_setting.select(None);
-                            } else if self.editing_string.is_some() { // bitrate|scale|other input
+                            } else if self.editing_string.is_some() {
+                                // bitrate|scale|other input
+                                todo!("Saving text")
                             } else {
                                 match selection {
                                     0..4 => self.selected_compress_setting.select_first(),
@@ -413,8 +420,10 @@ impl App {
             let list = List::new(items).block(settings_block).highlight_symbol(">");
             StatefulWidget::render(list, area, buf, &mut self.selected_compress_setting);
         } else if let Some(editing_string) = self.editing_string.clone() {
-            let input = Paragraph::new(editing_string).block(Block::bordered().title("Input"));
+            let input =
+                Paragraph::new(editing_string.clone()).block(Block::bordered().title("Input"));
             input.render(area, buf);
+            self.cursor_position = (area.x + editing_string.len() as u16 + 1, area.y + 1)
         } else {
             items = self
                 .ffmpeg_manager
