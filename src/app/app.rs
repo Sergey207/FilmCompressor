@@ -15,7 +15,6 @@ use ratatui::{
     text::Line,
     widgets::{Block, Widget},
 };
-use std::cmp::min;
 use std::fs::create_dir;
 use std::path::PathBuf;
 use std::process::Command;
@@ -176,132 +175,158 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('r') => {
-                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.run_compressing();
+        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+            match key_event.code {
+                KeyCode::Char('r') => self.run_compressing(),
+                KeyCode::Char('q') | KeyCode::Char('c') => self.exit = true,
+                KeyCode::Char('d') if self.selections[0].selected().is_some() => {
+                    self.ffmpeg_manager.stream_settings[self.selections[0].selected().unwrap()]
+                        .toggle_default();
                 }
+                _ => {}
             }
-            KeyCode::Char('q') | KeyCode::Char('c') => {
-                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.exit = true;
-                }
-            }
-            KeyCode::Esc => {
-                if self.selected_compress_setting.selected().is_some() {
-                    self.selected_compress_setting.select(None);
-                } else if self.editing_string.is_some() {
-                    self.editing_string = None;
-                } else {
-                    self.exit = true;
-                }
-            }
-            KeyCode::Up | KeyCode::Down => {
-                if let Some(selected) = self.get_selected() {
-                    if self.selected_compress_setting.selected().is_some() {
-                        match key_event.code {
-                            KeyCode::Up => self.selected_compress_setting.select_previous(),
-                            KeyCode::Down => self.selected_compress_setting.select_next(),
-                            _ => {}
-                        }
-                    } else {
-                        match key_event.code {
-                            KeyCode::Up => self.selections[selected].select_previous(),
-                            KeyCode::Down => self.selections[selected].select_next(),
-                            _ => {}
-                        }
-                    }
-                } else {
-                    self.selections[0].select_first();
-                }
-            }
-            KeyCode::Left | KeyCode::Right => {
-                let selected = self.get_selected();
-                if let Some(mut selected) = selected {
-                    self.selections[selected].select(None);
-                    if key_event.code == KeyCode::Left {
-                        selected = selected.saturating_sub(1);
-                    } else {
-                        selected = min(selected + 1, 2);
-                    }
-                    self.selections[selected].select_first();
-                } else {
-                    self.selections[0].select_first();
-                }
-                self.selected_compress_setting.select(None);
-                self.editing_string = None;
-            }
-            KeyCode::Enter => {
-                if let Some(selection) = self.get_selected() {
-                    match selection {
+        }
+
+        if self.selected_compress_setting.selected().is_some() {
+            // Codec|pix_fmt comboBox
+            match key_event.code {
+                KeyCode::Esc => self.selected_compress_setting.select(None),
+                KeyCode::Up => self.selected_compress_setting.select_previous(),
+                KeyCode::Down => self.selected_compress_setting.select_next(),
+                KeyCode::Enter => {
+                    let selected_compress_setting =
+                        self.selected_compress_setting.selected().unwrap();
+                    match self.selections[1].selected().unwrap() {
                         0 => {
-                            let selection = self.selections[0].selected().unwrap();
-                            self.ffmpeg_manager.stream_settings[selection].toggle_enabled();
+                            self.ffmpeg_manager.compress_settings.video_codec =
+                                VideoCodec::iter().nth(selected_compress_setting).unwrap();
                         }
                         1 => {
-                            let selection = self.selections[1].selected().unwrap();
-                            if let Some(compress_setting_selection) =
-                                self.selected_compress_setting.selected()
-                            // Codec|pix_fmt comboBox
-                            {
-                                match selection {
-                                    0 => {
-                                        self.ffmpeg_manager.compress_settings.video_codec =
-                                            VideoCodec::iter().collect::<Vec<VideoCodec>>()
-                                                [compress_setting_selection]
-                                                .clone()
-                                    }
-                                    1 => {
-                                        self.ffmpeg_manager.compress_settings.pixel_format =
-                                            PixelFormat::iter().collect::<Vec<PixelFormat>>()
-                                                [compress_setting_selection]
-                                                .clone()
-                                    }
-                                    2 => {
-                                        self.ffmpeg_manager.compress_settings.audio_codec =
-                                            AudioCodec::iter().collect::<Vec<AudioCodec>>()
-                                                [compress_setting_selection]
-                                                .clone()
-                                    }
-                                    3 => {
-                                        self.ffmpeg_manager.compress_settings.subtitle_codec =
-                                            SubtitleCodec::iter().collect::<Vec<SubtitleCodec>>()
-                                                [compress_setting_selection]
-                                                .clone()
-                                    }
-                                    _ => unreachable!(),
-                                }
-                                self.selected_compress_setting.select(None);
-                            } else if self.editing_string.is_some() {
-                                // bitrate|scale|other input
-                                todo!("Saving text")
-                            } else {
-                                match selection {
-                                    0..4 => self.selected_compress_setting.select_first(),
-                                    4..8 => self.editing_string = Some(String::new()),
-                                    _ => unreachable!(),
-                                }
-                            }
+                            self.ffmpeg_manager.compress_settings.pixel_format =
+                                PixelFormat::iter().nth(selected_compress_setting).unwrap();
                         }
-                        2 => {}
+                        2 => {
+                            self.ffmpeg_manager.compress_settings.audio_codec =
+                                AudioCodec::iter().nth(selected_compress_setting).unwrap();
+                        }
+                        3 => {
+                            self.ffmpeg_manager.compress_settings.subtitle_codec =
+                                SubtitleCodec::iter()
+                                    .nth(selected_compress_setting)
+                                    .unwrap()
+                        }
                         _ => unreachable!(),
                     }
+                    self.selected_compress_setting.select(None);
                 }
+                _ => {}
             }
-            KeyCode::Char('d') => {
-                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    if let Some(selection) = self.selections[0].selected() {
-                        self.ffmpeg_manager.toggle_default(selection);
+        } else if self.editing_string.is_some() {
+            // bitrate|scale|other input
+            match key_event.code {
+                KeyCode::Esc => self.editing_string = None,
+                KeyCode::Enter => {
+                    let selection = self.selections[1].selected().unwrap();
+                    let editing_string = self.editing_string.take().unwrap();
+                    let new_value = if editing_string.trim_ascii().is_empty() {
+                        None
+                    } else {
+                        Some(editing_string)
+                    };
+                    match selection {
+                        4 => self.ffmpeg_manager.compress_settings.video_bitrate = new_value,
+                        5 => self.ffmpeg_manager.compress_settings.audio_bitrate = new_value,
+                        6 => self.ffmpeg_manager.compress_settings.scale = new_value,
+                        7 => {
+                            self.ffmpeg_manager.compress_settings.other_settings =
+                                new_value.unwrap_or(String::new())
+                        }
+                        _ => unreachable!(),
                     }
+                    self.editing_string = None;
                 }
+                KeyCode::Backspace => {
+                    self.editing_string.as_mut().unwrap().pop();
+                }
+                KeyCode::Char(new_char) => {
+                    self.editing_string.as_mut().unwrap().push(new_char);
+                }
+                _ => {}
             }
-            KeyCode::Delete => {
-                if let Some(selection) = self.selections[2].selected() {
-                    self.ffmpeg_manager.input_files.remove(selection);
+        } else if let Some(selection) = self.get_selected() {
+            match key_event.code {
+                KeyCode::Esc => self.exit = true,
+                KeyCode::Up => self.selections[selection].select_previous(),
+                KeyCode::Down => self.selections[selection].select_next(),
+                KeyCode::Left => {
+                    self.selections[(selection + 2) % 3]
+                        .select(self.selections[selection].selected());
+                    self.selections[selection].select(None);
+                }
+                KeyCode::Right => {
+                    self.selections[(selection + 1) % 3]
+                        .select(self.selections[selection].selected());
+                    self.selections[selection].select(None);
+                }
+                KeyCode::Enter => match selection {
+                    0 => {
+                        self.ffmpeg_manager.stream_settings[self.selections[0].selected().unwrap()]
+                            .toggle_enabled();
+                    }
+                    1 => match self.selections[1].selected().unwrap() {
+                        0..4 => self.selected_compress_setting.select_first(),
+                        4 => {
+                            self.editing_string = Some(
+                                self.ffmpeg_manager
+                                    .compress_settings
+                                    .video_bitrate
+                                    .clone()
+                                    .unwrap_or(String::new()),
+                            )
+                        }
+                        5 => {
+                            self.editing_string = Some(
+                                self.ffmpeg_manager
+                                    .compress_settings
+                                    .audio_bitrate
+                                    .clone()
+                                    .unwrap_or(String::new()),
+                            )
+                        }
+                        6 => {
+                            self.editing_string = Some(
+                                self.ffmpeg_manager
+                                    .compress_settings
+                                    .scale
+                                    .clone()
+                                    .unwrap_or(String::new()),
+                            )
+                        }
+                        7 => {
+                            self.editing_string =
+                                Some(self.ffmpeg_manager.compress_settings.other_settings.clone())
+                        }
+                        _ => unreachable!(),
+                    },
+                    2 => {}
+                    _ => unreachable!(),
+                },
+                KeyCode::Delete if selection == 2 => {
+                    self.ffmpeg_manager
+                        .input_files
+                        .remove(self.selections[selection].selected().unwrap());
                     self.ffmpeg_manager.update_stream_settings();
                 }
+                _ => {}
             }
-            _ => {}
+        } else {
+            match key_event.code {
+                KeyCode::Esc => self.exit = true,
+                KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => {
+                    self.selections[0].select_first();
+                }
+                _ => {}
+            }
         }
         self.update_hotkeys();
     }
@@ -420,8 +445,15 @@ impl App {
             let list = List::new(items).block(settings_block).highlight_symbol(">");
             StatefulWidget::render(list, area, buf, &mut self.selected_compress_setting);
         } else if let Some(editing_string) = self.editing_string.clone() {
+            let title = match self.selections[1].selected().unwrap() {
+                4 => "Video bitrate",
+                5 => "Audio bitrate",
+                6 => "Scale",
+                7 => "Other settings",
+                _ => unreachable!(),
+            };
             let input =
-                Paragraph::new(editing_string.clone()).block(Block::bordered().title("Input"));
+                Paragraph::new(editing_string.clone()).block(Block::bordered().title(title));
             input.render(area, buf);
             self.cursor_position = (area.x + editing_string.len() as u16 + 1, area.y + 1)
         } else {

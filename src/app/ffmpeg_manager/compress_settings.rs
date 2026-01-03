@@ -22,11 +22,11 @@ impl CompressSettings {
             format!("Audio codec: {}", self.audio_codec.to_string()),
             format!("Subtitle codec: {}", self.subtitle_codec.to_string()),
             format!(
-                "Video bit rate: {}",
+                "Video bitrate: {}",
                 self.video_bitrate.clone().unwrap_or(String::from("auto"))
             ),
             format!(
-                "Audio bit rate: {}",
+                "Audio bitrate: {}",
                 self.audio_bitrate.clone().unwrap_or(String::from("auto"))
             ),
             format!(
@@ -74,11 +74,11 @@ impl CompressSettings {
         if self.video_codec.is_vaapi() || self.scale.is_some() {
             let mut video_format = String::new();
             if self.video_codec.is_vaapi() {
-                if let Some(scale) = self.scale.clone() {
-                    video_format = format!("scale_vaapi={},", scale);
-                }
                 video_format += &format!("format={},", self.pixel_format);
                 video_format += "hwupload";
+                if let Some(scale) = self.scale.clone() {
+                    video_format += &format!(",scale_vaapi={}", scale);
+                }
             } else if let Some(scale) = self.scale.clone() {
                 video_format = format!("scale={}", scale);
             }
@@ -90,7 +90,12 @@ impl CompressSettings {
         }
 
         if !self.other_settings.is_empty() {
-            result.push(self.other_settings.to_string());
+            let other_settings = self
+                .other_settings
+                .split(" ")
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+            result.extend(other_settings);
         }
 
         result

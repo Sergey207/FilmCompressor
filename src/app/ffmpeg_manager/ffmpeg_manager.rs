@@ -2,7 +2,6 @@ use crate::app::ffmpeg_manager::compress_settings::CompressSettings;
 use serde_json::Value;
 use std::fmt::Display;
 use std::io::{Error, ErrorKind};
-use std::mem::discriminant;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -201,6 +200,14 @@ pub struct FfmpegStreamSettings {
 impl FfmpegStreamSettings {
     pub fn toggle_enabled(&mut self) {
         self.enabled = !self.enabled;
+        if !self.enabled {
+            self.default = false;
+        }
+    }
+    pub fn toggle_default(&mut self) {
+        if self.enabled {
+            self.default = !self.default;
+        }
     }
 }
 
@@ -283,16 +290,6 @@ impl FfmpegManager {
                 stream_settings.files = FfmpegStreamFiles::Partial(files);
             }
         }
-    }
-
-    pub fn toggle_default(&mut self, index: usize) {
-        let new_value = !self.stream_settings[index].default;
-        let stream_type = discriminant(&self.stream_settings[index].stream.stream_type);
-        self.stream_settings
-            .iter_mut()
-            .filter(|s| discriminant(&s.stream.stream_type) == stream_type)
-            .for_each(|s| s.default = false);
-        self.stream_settings[index].default = new_value;
     }
 
     pub fn get_command_template(&self) -> String {
