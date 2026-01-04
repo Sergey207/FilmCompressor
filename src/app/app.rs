@@ -154,7 +154,7 @@ impl App {
         self.hotkeys = result;
     }
 
-    /// Returns inde of selected list (0/1/2) or None
+    /// Returns index of selected list (0/1/2) or None
     pub fn get_selected(&self) -> Option<usize> {
         for i in 0..3 {
             if self.selections[i].selected().is_some() {
@@ -222,7 +222,7 @@ impl App {
                 _ => {}
             }
         } else if self.editing_string.is_some() {
-            // bitrate|scale|other input
+            // bitrate|crop|scale|other input
             match key_event.code {
                 KeyCode::Esc => self.editing_string = None,
                 KeyCode::Enter => {
@@ -236,8 +236,9 @@ impl App {
                     match selection {
                         4 => self.ffmpeg_manager.compress_settings.video_bitrate = new_value,
                         5 => self.ffmpeg_manager.compress_settings.audio_bitrate = new_value,
-                        6 => self.ffmpeg_manager.compress_settings.scale = new_value,
-                        7 => {
+                        6 => self.ffmpeg_manager.compress_settings.crop = new_value,
+                        7 => self.ffmpeg_manager.compress_settings.scale = new_value,
+                        8 => {
                             self.ffmpeg_manager.compress_settings.other_settings =
                                 new_value.unwrap_or(String::new())
                         }
@@ -297,12 +298,21 @@ impl App {
                             self.editing_string = Some(
                                 self.ffmpeg_manager
                                     .compress_settings
+                                    .crop
+                                    .clone()
+                                    .unwrap_or(String::new()),
+                            );
+                        }
+                        7 => {
+                            self.editing_string = Some(
+                                self.ffmpeg_manager
+                                    .compress_settings
                                     .scale
                                     .clone()
                                     .unwrap_or(String::new()),
                             )
                         }
-                        7 => {
+                        8 => {
                             self.editing_string =
                                 Some(self.ffmpeg_manager.compress_settings.other_settings.clone())
                         }
@@ -448,8 +458,9 @@ impl App {
             let title = match self.selections[1].selected().unwrap() {
                 4 => "Video bitrate",
                 5 => "Audio bitrate",
-                6 => "Scale",
-                7 => "Other settings",
+                6 => "Crop",
+                7 => "Scale",
+                8 => "Other settings",
                 _ => unreachable!(),
             };
             let input =
@@ -498,7 +509,7 @@ impl Widget for &mut App {
             .title_bottom(instructions.centered())
             .border_set(border::ROUNDED);
 
-        let [main_page, command] = Layout::vertical([Min(0), Length(4)]).areas(block.inner(area));
+        let [main_page, command] = Layout::vertical([Min(0), Length(5)]).areas(block.inner(area));
         let command_block = Block::bordered()
             .border_set(border::ROUNDED)
             .title(Line::from(" Command ").centered());

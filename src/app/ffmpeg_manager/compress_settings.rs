@@ -10,6 +10,7 @@ pub struct CompressSettings {
     pub video_bitrate: Option<String>,
     pub audio_bitrate: Option<String>,
 
+    pub crop: Option<String>,
     pub scale: Option<String>,
     pub other_settings: String,
 }
@@ -29,6 +30,7 @@ impl CompressSettings {
                 "Audio bitrate: {}",
                 self.audio_bitrate.clone().unwrap_or(String::from("auto"))
             ),
+            format!("Crop: {}", self.crop.clone().unwrap_or(String::from("no"))),
             format!(
                 "Scale: {}",
                 self.scale.clone().unwrap_or(String::from("no"))
@@ -71,18 +73,25 @@ impl CompressSettings {
             result.extend(vec!["-b:a".to_string(), audio_bitrate]);
         }
 
-        if self.video_codec.is_vaapi() || self.scale.is_some() {
-            let mut video_format = String::new();
-            if self.video_codec.is_vaapi() {
-                video_format += &format!("format={},", self.pixel_format);
-                video_format += "hwupload";
-                if let Some(scale) = self.scale.clone() {
-                    video_format += &format!(",scale_vaapi={}", scale);
-                }
-            } else if let Some(scale) = self.scale.clone() {
-                video_format = format!("scale={}", scale);
+        if self.video_codec.is_vaapi() || self.crop.is_some() || self.scale.is_some() {
+            let mut video_format = Vec::new();
+            if let Some(crop) = self.crop.clone() {
+                video_format.push(format!("crop={}", crop));
             }
-            result.extend(vec!["-vf".to_string(), video_format]);
+            if self.video_codec.is_vaapi() {
+                video_format.push(format!("format={}", self.pixel_format));
+                video_format.push(String::from("hwupload"));
+                if let Some(scale) = self.scale.clone() {
+                    video_format.push(format!("scale_vaapi={}", scale));
+                }
+            } else {
+                if let Some(scale) = self.scale.clone() {
+                    video_format.push(format!("scale={}", scale));
+                }
+            }
+            if !video_format.is_empty() {
+                result.extend(vec!["-vf".to_string(), video_format.join(",")]);
+            }
         }
 
         if !self.video_codec.is_vaapi() {
@@ -111,6 +120,7 @@ impl Default for CompressSettings {
             subtitle_codec: SubtitleCodec::default(),
             video_bitrate: None,
             audio_bitrate: None,
+            crop: None,
             scale: None,
             other_settings: String::new(),
         }
